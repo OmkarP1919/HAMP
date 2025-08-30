@@ -39,77 +39,51 @@
             padding: 0 1rem;
         }
 
-        /* Header Styling */
-        .header {
-            background-color: var(--card-bg);
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        /* --- NEW Top Panel Styling --- */
+        .top-panel {
+            /* Copied background from .hero section */
+            background: linear-gradient(135deg, var(--accent-color), #4f87ff); 
+            color: #ffffff; /* Changed to white for better contrast */
+            padding: 20px;
+            text-align: center;
+            /* Removed the border for a cleaner look */
         }
 
-        .header-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1rem 0;
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            text-decoration: none;
-        }
-
-        .logo i {
-            font-size: 1.5rem;
-            color: var(--accent-color);
-        }
-
-        .logo span {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: var(--primary-color);
+        .top-panel h1 {
+            margin: 0;
+            font-size: 2.5em;
         }
 
         .navbar ul {
-            list-style: none;
-            margin: 0;
+            list-style-type: none;
+            margin: 15px 0 0;
             padding: 0;
-            display: flex;
-            gap: 2rem;
+        }
+
+        .navbar li {
+            display: inline-block;
+            margin: 0 10px;
         }
 
         .navbar a {
-            text-decoration: none;
-            color: var(--light-text-color);
-            font-weight: 500;
-            transition: color 0.3s ease;
-        }
-
-        .navbar a:hover,
-        .navbar a.active {
-            color: var(--accent-color);
-        }
-
-        /* Hero Section */
-        .hero {
-            background: linear-gradient(135deg, var(--accent-color), #4f87ff);
-            color: white;
-            text-align: center;
-            padding: 6rem 1rem;
-        }
-
-        .hero h1 {
-            font-size: 3rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-        }
-
-        .hero p {
-            font-size: 1.25rem;
-            font-weight: 400;
-            max-width: 800px;
-            margin: 0 auto;
+            color: #ffffff; /* Changed to white for better contrast */
             opacity: 0.9;
+            text-decoration: none;
+            font-size: 1.1em;
+            padding: 8px 15px;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .navbar a:hover {
+            opacity: 1;
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+        
+        .navbar a.active {
+            opacity: 1;
+            background-color: rgba(255, 255, 255, 0.25);
+            font-weight: 600;
         }
 
         /* Main Content Styling */
@@ -398,22 +372,8 @@
 
         /* Responsive Design */
         @media (max-width: 768px) {
-            .header-container {
-                flex-direction: column;
-                gap: 1rem;
-            }
-
             .navbar ul {
                 gap: 1rem;
-            }
-            .hero {
-                padding: 4rem 1rem;
-            }
-            .hero h1 {
-                font-size: 2rem;
-            }
-            .hero p {
-                font-size: 1rem;
             }
             .hostel-tabs {
                 display: flex;
@@ -425,29 +385,19 @@
 </head>
 <body>
 
-    <header class="header">
-        <div class="container header-container">
-            <a href="#" class="logo">
-                <i class="fas fa-building"></i>
-                <span>Campus Hostels</span>
-            </a>
-            <nav class="navbar">
-                <ul>
-                    <li><a href="#">Home</a></li>
-                    <li><a href="#">Admissions</a></li>
-                    <li><a href="#" class="active">Hostels</a></li>
-                    <li><a href="#">Contact</a></li>
-                </ul>
-            </nav>
-        </div>
+    <header class="top-panel">
+        <h1>Hostel Mate</h1>
+        <nav class="navbar">
+            <ul>
+                <li><a href="#">Home</a></li>
+                <li><a href="#">Login</a></li>
+                <li><a href="#">Hostels</a></li>
+                <li><a href="#">Apply</a></li>
+                <li><a href="#">Downloads</a></li>
+                <li><a href="#">Contact Us</a></li>
+            </ul>
+        </nav>
     </header>
-
-    <div class="hero">
-        <div class="container">
-            <h1>Hostel Details</h1>
-            <p>Explore our comfortable and secure hostel accommodations with modern facilities and amenities.</p>
-        </div>
-    </div>
 
     <main class="main-content">
         <section class="hostel-details-section">
@@ -482,7 +432,7 @@
                             <div class="card-content">
                                 <div class="info-item"><i class="fas fa-user-tie"></i><span>Rector: Mrs.Deshmukh Bharti</span></div>
                                 <div class="info-item"><i class="fas fa-cogs"></i><span>Facilities:
-                                     <ul><li>24/7 Study Rooms</li><li>24/7 Security & CCTV</li><li>Laundry </li><li>Non-AC Rooms</li></ul></span>
+                                        <ul><li>24/7 Study Rooms</li><li>24/7 Security & CCTV</li><li>Laundry </li><li>Non-AC Rooms</li></ul></span>
                                 </div>
                                 <div class="info-item"><i class="fas fa-rupee-sign"></i><span>Fees: 20000/Year</span></div>
                                 <div class="info-item"><i class="fas fa-graduation-cap"></i><span>Eligibility: 11 th and 12 th</span></div>
@@ -494,7 +444,7 @@
                             <div class="card-content">
                                 <div class="info-item"><i class="fas fa-user-tie"></i><span>Rector: Mrs.Taware Sunita</span></div>
                                 <div class="info-item"><i class="fas fa-cogs"></i><span>Facilities:
-                                     <ul><li>24/7 Study Rooms</li><li>24/7 Security & CCTV</li><li>Laundry </li><li>Non-AC Rooms</li></ul></span>
+                                        <ul><li>24/7 Study Rooms</li><li>24/7 Security & CCTV</li><li>Laundry </li><li>Non-AC Rooms</li></ul></span>
                                 </div>
                                 <div class="info-item"><i class="fas fa-rupee-sign"></i><span>Fees: 20000/Year</span></div>
                                 <div class="info-item"><i class="fas fa-graduation-cap"></i><span>Eligibility: B.com,Bsc,BBA-old</span></div>
@@ -540,10 +490,10 @@
                             <div class="card-content">
                                 <div class="info-item"><i class="fas fa-user-tie"></i><span>Rector: Mr.Ekad Vaibhav</span></div>
                                 <div class="info-item"><i class="fas fa-cogs"></i><span>Facilities:
-                                     <ul><li>24/7 Study Rooms</li><li>24/7 Security & CCTV</li><li>Laundry </li><li>Non-AC Rooms</li></ul></span>
+                                        <ul><li>24/7 Study Rooms</li><li>24/7 Security & CCTV</li><li>Laundry </li><li>Non-AC Rooms</li></ul></span>
                                 </div>
                                 <div class="info-item"><i class="fas fa-rupee-sign"></i><span>Fees: 20000/Year</span></div>
-                                <div class="info-item"><i class="fas fa-graduation-cap"></i><span>Eligibility: 11 th and 12 th/span></div>
+                                <div class="info-item"><i class="fas fa-graduation-cap"></i><span>Eligibility: 11 th and 12 th</span></div>
                                 <div class="info-item"><i class="fas fa-users"></i><span>Total Intake: 273 students</span></div>
                             </div>
                         </div>
@@ -564,7 +514,7 @@
                             <div class="card-content">
                                 <div class="info-item"><i class="fas fa-user-tie"></i><span>Rector: Mr.Jagtap Rahul</span></div>
                                 <div class="info-item"><i class="fas fa-cogs"></i><span>Facilities:
-                                     <ul><li>24/7 Study Rooms</li><li>24/7 Security & CCTV</li><li>Laundry </li><li>Non-AC Rooms</li></ul></span>
+                                        <ul><li>24/7 Study Rooms</li><li>24/7 Security & CCTV</li><li>Laundry </li><li>Non-AC Rooms</li></ul></span>
                                 </div>
                                 <div class="info-item"><i class="fas fa-rupee-sign"></i><span>Fees: 20000/Year</span></div>
                                 <div class="info-item"><i class="fas fa-graduation-cap"></i><span>Eligibility: BA,L.L.B,Btech</span></div>
@@ -576,7 +526,7 @@
                             <div class="card-content">
                                 <div class="info-item"><i class="fas fa-user-tie"></i><span>Rector: Mr.Shitole Sanjay</span></div>
                                 <div class="info-item"><i class="fas fa-cogs"></i><span>Facilities:
-                                     <ul><li>24/7 Study Rooms</li><li>24/7 Security & CCTV</li><li>Laundry </li><li>Non-AC Rooms</li></ul></span>
+                                        <ul><li>24/7 Study Rooms</li><li>24/7 Security & CCTV</li><li>Laundry </li><li>Non-AC Rooms</li></ul></span>
                                 </div>
                                 <div class="info-item"><i class="fas fa-rupee-sign"></i><span>Fees: 20000/Year</span></div>
                                 <div class="info-item"><i class="fas fa-graduation-cap"></i><span>Eligibility: SY,TY,Bcom,Food Tech,BCA,Msc,BBA</span></div>
@@ -604,7 +554,7 @@
         <div class="container footer-container">
             <a href="#" class="logo">
                 <i class="fas fa-building"></i>
-                <span>Campus Hostels</span>
+                <span>Hostel Mate</span>
             </a>
             <p>Providing safe and comfortable accommodation for students</p>
             <div class="social-icons">

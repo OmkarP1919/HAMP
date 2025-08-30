@@ -1,80 +1,144 @@
-<%-- 
-    Document   : admin_login
-    Created on : Aug 2, 2025, 10:46:09 AM
-    Author     : user
---%>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Admin Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --primary-color: #1f2937;
+            --secondary-color: #f9fafb;
+            --accent-color: #2563eb;
+            --light-text-color: #6b7280;
+            --card-bg: #ffffff;
+            --border-color: #e5e7eb;
+        }
+
+        /* Basic reset and body styling */
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            background: #f0f0f0;
+            font-family: 'Inter', sans-serif;
+            background: var(--secondary-color);
+            margin: 0;
+            display: flex; /* Use flexbox for layout */
+            flex-direction: column; /* Stack children vertically */
+            height: 100vh; /* Full viewport height */
+        }
+
+        /* --- Top Panel Styling --- */
+        .top-panel {
+            background: linear-gradient(135deg, var(--accent-color), #4f87ff);
+            color: #ffffff;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .top-panel h1 {
+            margin: 0;
+            font-size: 2.5em;
+        }
+
+        .navbar ul {
+            list-style-type: none;
+            margin: 15px 0 0;
+            padding: 0;
+        }
+
+        .navbar li {
+            display: inline-block;
+            margin: 0 10px;
+        }
+
+        .navbar a {
+            color: #ffffff;
+            opacity: 0.9;
+            text-decoration: none;
+            font-size: 1.1em;
+            padding: 8px 15px;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .navbar a:hover {
+            opacity: 1;
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+
+        /* --- Main Content Area --- */
+        .main-content {
+            flex-grow: 1; /* Allow this area to grow and fill remaining space */
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            margin: 0;
+            padding: 20px;
         }
 
+        /* --- Login Form Styling --- */
         .login-container {
-            background-color: #fff;
-            padding: 30px 40px;
+            background-color: var(--card-bg);
+            padding: 40px 50px; 
             border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-            width: 350px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 450px; 
         }
 
         .login-container h2 {
             text-align: center;
-            margin-bottom: 25px;
-            color: #333;
+            margin-top: 0;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+            font-size: 1.8em;
         }
 
         .login-container label {
             display: block;
             margin-bottom: 8px;
-            font-weight: bold;
+            font-weight: 600; /* Semibold */
+            color: var(--primary-color);
         }
 
         .login-container input[type="text"],
         .login-container input[type="password"] {
             width: 100%;
-            padding: 10px;
-            margin-bottom: 18px;
-            border: 1px solid #ccc;
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
             border-radius: 6px;
-            box-sizing: border-box;
+            font-size: 1em;
         }
 
         .login-container input[type="submit"] {
             width: 100%;
-            background-color: #007BFF;
+            background-color: var(--accent-color);
             color: white;
-            padding: 12px;
+            padding: 14px;
             border: none;
             border-radius: 6px;
             cursor: pointer;
             font-size: 16px;
+            font-weight: 600;
+            transition: background-color 0.3s ease;
         }
 
         .login-container input[type="submit"]:hover {
-            background-color: #0056b3;
+            background-color: #1e40af; /* Darker shade of accent color */
         }
 
         .footer {
-            display: flex;
-            justify-content: space-between;
+            text-align: center;
             font-size: 13px;
-            margin-top: 15px;
-            color: #777;
+            margin-top: 20px;
+            color: var(--light-text-color);
         }
 
         .footer a {
             text-decoration: none;
-            color: #007BFF;
+            color: var(--accent-color);
+            font-weight: 500;
         }
 
         .footer a:hover {
@@ -83,20 +147,38 @@
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <h2>Admin Login</h2>
-        <form action="adminLoginProcess.jsp" method="post">
-            <label for="username">Admin Username:</label>
-            <input type="text" id="username" name="username" required>
 
-            <label for="password">Password:</label>
-            <input type="password" id="password" name="password" required>
+    <header class="top-panel">
+        <h1>Hostel Mate</h1>
+        <nav class="navbar">
+            <ul>
+                <li><a href="#">Home</a></li>
+                <li><a href="#">Login</a></li>
+                <li><a href="#">Hostels</a></li>
+                <li><a href="#">Apply</a></li>
+                <li><a href="#">Downloads</a></li>
+                <li><a href="#">Contact Us</a></li>
+            </ul>
+        </nav>
+    </header>
 
-            <input type="submit" value="Login">
-        </form>
-        <div class="footer">
-            <a href="#">Forgot Password?</a>
+    <main class="main-content">
+        <div class="login-container">
+            <h2>Admin Login</h2>
+            <form action="admin_login.jsp" method="post">
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" required>
+
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required>
+
+                <input type="submit" value="Login">
+            </form>
+            <div class="footer">
+                <a href="#">Forgot Password?</a>
+            </div>
         </div>
-    </div>
+    </main>
+    
 </body>
 </html>
