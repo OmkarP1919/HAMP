@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Management</title>
+    <title>Admin Profile</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -74,7 +74,7 @@
         .side-panel-nav li a.active { background-color: var(--accent-color); color: white; font-weight: 600; }
         .side-panel-nav li a i { width: 20px; text-align: center; }
 
-        /* --- STUDENT LIST PAGE STYLES --- */
+        /* --- ADMIN PROFILE PAGE STYLES --- */
         .main-content {
             grid-area: main;
             padding: 2.5rem;
@@ -92,48 +92,63 @@
             border: 1px solid var(--border-color);
             border-radius: 12px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-bottom: 2rem;
         }
 
-        .filter-bar {
-            padding: 1.5rem;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-            align-items: center;
+        .card-header {
+            padding: 1.25rem 1.5rem;
             border-bottom: 1px solid var(--border-color);
         }
-        
-        .search-group {
-            flex-grow: 1;
-            position: relative;
+        .card-header h2 { margin: 0; font-size: 1.2rem; font-weight: 600; }
+
+        .card-body { padding: 1.5rem; }
+
+        .profile-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
         }
 
-        .search-group i {
-            position: absolute;
-            left: 1rem;
-            top: 50%;
-            transform: translateY(-50%);
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        .form-group:last-child { margin-bottom: 0; }
+
+        .form-group label {
+            display: block;
+            font-size: 0.9rem;
             color: var(--light-text-color);
+            font-weight: 500;
+            margin-bottom: 0.5rem;
         }
 
-        .search-group input, .filter-group select {
-            padding: 0.75rem;
-            border-radius: 8px;
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem 1rem;
             border: 1px solid var(--border-color);
+            border-radius: 6px;
             font-size: 1rem;
             font-family: 'Inter', sans-serif;
         }
-
-        .search-group input {
-            padding-left: 2.75rem;
-            width: 100%;
+        
+        .form-group .value {
+             font-size: 1rem;
+            font-weight: 600;
+            padding: 0.75rem 1rem;
+            background-color: var(--secondary-color);
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
         }
 
-        .filter-group select {
-            min-width: 150px;
+        .card-footer {
+            padding: 1.25rem 1.5rem;
+            border-top: 1px solid var(--border-color);
+            background-color: var(--secondary-color);
+            text-align: right;
+            border-radius: 0 0 12px 12px;
         }
 
-        .button-filter {
+        .button-save {
             padding: 0.75rem 1.5rem;
             border: none;
             border-radius: 8px;
@@ -144,54 +159,7 @@
             cursor: pointer;
             transition: background-color 0.2s ease;
         }
-
-        .table-container {
-            width: 100%;
-            overflow-x: auto;
-        }
-
-        .student-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .student-table th, .student-table td {
-            padding: 1.25rem 1.5rem;
-            text-align: left;
-            border-bottom: 1px solid var(--border-color);
-            white-space: nowrap;
-        }
-        
-        .student-table thead {
-             background-color: var(--secondary-color);
-        }
-
-        .student-table th {
-            font-size: 0.85rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            color: var(--light-text-color);
-        }
-        
-        .student-table tbody tr:hover {
-            background-color: var(--secondary-color);
-        }
-        
-        .button-action {
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            font-weight: 500;
-            text-decoration: none;
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            color: var(--primary-color);
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .button-action:hover {
-            background-color: var(--secondary-color);
-            border-color: #d1d5db;
-        }
+        .button-save:hover { background-color: #1d4ed8; }
         
         /* Responsive */
         @media (max-width: 992px) {
@@ -212,88 +180,70 @@
         <h2>Admin Menu</h2>
         <ul class="side-panel-nav">
             <li><a href="#"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
-            <li><a href="#"><i class="fas fa-user-cog"></i> Profile</a></li>
+            <li><a href="#" class="active"><i class="fas fa-user-cog"></i> Profile</a></li>
             <li><a href="#"><i class="fas fa-file-signature"></i> Applications</a></li>
-            <li><a href="#" class="active"><i class="fas fa-users"></i> Students</a></li>
+            <li><a href="#"><i class="fas fa-users"></i> Students</a></li>
             <li><a href="#"><i class="fas fa-bed"></i> Rooms</a></li>
         </ul>
     </aside>
     <main class="main-content">
         <div class="page-header">
-            <h1>Student Management</h1>
+            <h1>Admin Profile</h1>
         </div>
 
+        <!-- Admin Information Card -->
         <div class="card">
-            <div class="filter-bar">
-                <div class="search-group">
-                    <i class="fas fa-search"></i>
-                    <input type="text" placeholder="Search by name or roll no...">
-                </div>
-                <div class="filter-group">
-                    <select>
-                        <option value="">All Hostels</option>
-                        <option value="A">Hostel A</option>
-                        <option value="B">Hostel B</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <select>
-                        <option value="">All Courses</option>
-                        <option value="CS">Computer Science</option>
-                        <option value="ME">Mechanical Engg.</option>
-                    </select>
-                </div>
-                 <div class="filter-group">
-                    <select>
-                        <option value="">All Years</option>
-                        <option value="1">First Year</option>
-                        <option value="2">Second Year</option>
-                    </select>
-                </div>
-                <button class="button-filter">Filter</button>
+            <div class="card-header">
+                <h2>Admin Information</h2>
             </div>
-            <div class="table-container">
-                <table class="student-table">
-                    <thead>
-                        <tr>
-                            <th>Roll No</th>
-                            <th>Full Name</th>
-                            <th>Course & Year</th>
-                            <th>Hostel</th>
-                            <th>Room No</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- JSP will generate these rows dynamically -->
-                        <tr>
-                            <td>STUDENT12345</td>
-                            <td>Alex Doe</td>
-                            <td>Computer Science, Year 2</td>
-                            <td>Hostel A</td>
-                            <td>A-101</td>
-                            <td><a href="#" class="button-action">View Details</a></td>
-                        </tr>
-                        <tr>
-                            <td>STUDENT12346</td>
-                            <td>Sarah Smith</td>
-                            <td>Mechanical Engg., Year 3</td>
-                            <td>Hostel B</td>
-                            <td>B-204</td>
-                            <td><a href="#" class="button-action">View Details</a></td>
-                        </tr>
-                        <tr>
-                            <td>STUDENT12347</td>
-                            <td>Mike Johnson</td>
-                            <td>Computer Science, Year 2</td>
-                            <td>Hostel A</td>
-                            <td>A-102</td>
-                            <td><a href="#" class="button-action">View Details</a></td>
-                        </tr>
-                         <!-- Add more sample rows as needed -->
-                    </tbody>
-                </table>
+            <div class="card-body">
+                <div class="profile-grid">
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <div class="value">Admin Name</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Admin ID / Rector ID</label>
+                        <div class="value">RECTOR-A</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <div class="value">admin@example.com</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Hostel Managed</label>
+                        <div class="value">Hostel A</div>
+                    </div>
+                </div>
             </div>
+        </div>
+
+        <!-- Change Password Card -->
+        <div class="card">
+            <div class="card-header">
+                <h2>Change Password</h2>
+            </div>
+            <form action="update_admin_password.jsp" method="POST">
+                <div class="card-body">
+                    <div class="profile-grid">
+                        <div class="form-group">
+                            <label for="old_password">Old Password</label>
+                            <input type="password" id="old_password" name="old_password" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="new_password">New Password</label>
+                            <input type="password" id="new_password" name="new_password" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="confirm_password">Confirm New Password</label>
+                            <input type="password" id="confirm_password" name="confirm_password" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" class="button-save">Update Password</button>
+                </div>
+            </form>
         </div>
     </main>
 </body>
