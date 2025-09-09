@@ -66,6 +66,44 @@
             opacity: 1;
             background-color: rgba(255, 255, 255, 0.15);
         }
+        /* --- NEW DROPDOWN STYLES --- */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .dropdown .dropbtn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+        }
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: var(--card-bg);
+            min-width: 200px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.1);
+            z-index: 1;
+            border-radius: 8px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        .dropdown-content a {
+            color: var(--primary-color);
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            text-align: left;
+            font-weight: 500;
+            background-color: transparent;
+            opacity: 1;
+        }
+        .dropdown-content a:hover {
+            background-color: var(--secondary-color);
+        }
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
 
         /* --- Main Content Area --- */
         .main-content {
@@ -151,21 +189,28 @@
     <header class="top-panel">
         <h1>Hostel Mate</h1>
         <nav class="navbar">
-            <ul>
-                <li><a href="#">Home</a></li>
-                <li><a href="#">Login</a></li>
-                <li><a href="#">Hostels</a></li>
-                <li><a href="#">Apply</a></li>
-                <li><a href="#">Downloads</a></li>
-                <li><a href="#">Contact Us</a></li>
-            </ul>
-        </nav>
+                <ul>
+                    <li><a href="index.html">Home</a></li>
+                    <!-- UPDATED LOGIN DROPDOWN -->
+                    <li class="dropdown">
+                        <a href="#" class="dropbtn">Login <i class="fas fa-caret-down fa-xs"></i></a>
+                        <div class="dropdown-content">
+                            <a href="user_login.jsp">Student</a>
+                            <a href="admin_login.jsp">Admin</a>
+                        </div>
+                    </li>
+                    <li><a href="home_hostels.jsp">Hostels</a></li>
+                    <li><a href="user_register.jsp">Apply</a></li>
+                    <li><a href="home_notices.jsp">Downloads</a></li>
+                    <li><a href="#">Contact Us</a></li>
+                </ul>
+            </nav>
     </header>
 
     <main class="main-content">
         <div class="login-container">
             <h2>Admin Login</h2>
-            <form action="admin_login.jsp" method="post">
+            <form action="admin_dashboard.jsp" method="post">
                 <label for="username">Username:</label>
                 <input type="text" id="username" name="username" required>
 

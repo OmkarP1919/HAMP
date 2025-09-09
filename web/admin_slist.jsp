@@ -205,17 +205,17 @@
         <div class="logo-title"><h1>Hostel Mate</h1></div>
         <div class="user-menu">
             <span class="user-info"><i class="fas fa-user-circle"></i> Welcome, Admin</span>
-            <a href="#" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            <a href="admin_login.jsp" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>
     </header>
     <aside class="side-panel">
         <h2>Admin Menu</h2>
         <ul class="side-panel-nav">
-            <li><a href="#"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
-            <li><a href="#"><i class="fas fa-user-cog"></i> Profile</a></li>
-            <li><a href="#"><i class="fas fa-file-signature"></i> Applications</a></li>
-            <li><a href="#" class="active"><i class="fas fa-users"></i> Students</a></li>
-            <li><a href="#"><i class="fas fa-bed"></i> Rooms</a></li>
+            <li><a href="admin_dashboard.jsp"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+            <li><a href="admin_profile.jsp"><i class="fas fa-user-cog"></i> Profile</a></li>
+            <li><a href="admin_applications.jsp" class="active"><i class="fas fa-file-signature"></i> Applications</a></li>
+            <li><a href="#"><i class="fas fa-users"></i> Students</a></li>
+            <li><a href="admin_rooms.jsp"><i class="fas fa-bed"></i> Rooms</a></li>
         </ul>
     </aside>
     <main class="main-content">
