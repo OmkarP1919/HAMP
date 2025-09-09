@@ -183,9 +183,9 @@
     <aside class="side-panel">
         <h2>Admin Menu</h2>
         <ul class="side-panel-nav">
-            <li><a href="#"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+            <li><a href="#" class="active"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
             <li><a href="admin_profile.jsp"><i class="fas fa-user-cog"></i> Profile</a></li>
-            <li><a href="admin_applications.jsp" class="active"><i class="fas fa-file-signature"></i> Applications</a></li>
+            <li><a href="admin_applications.jsp"><i class="fas fa-file-signature"></i> Applications</a></li>
             <li><a href="admin_slist.jsp"><i class="fas fa-users"></i> Students</a></li>
             <li><a href="admin_rooms.jsp"><i class="fas fa-bed"></i> Rooms</a></li>
         </ul>

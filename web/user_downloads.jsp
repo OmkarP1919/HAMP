@@ -195,9 +195,9 @@
         <h2>Student Menu</h2>
         <ul class="side-panel-nav">
             <li><a href="user_dashboard.jsp"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
-            <li><a href="user_apply.jsp" class="active"><i class="fas fa-file-alt"></i> Apply</a></li>
+            <li><a href="user_apply.jsp"><i class="fas fa-file-alt"></i> Apply</a></li>
             <li><a href="user_profile.jsp"><i class="fas fa-user-circle"></i> Profile</a></li>
-            <li><a href="#"><i class="fas fa-download"></i> Downloads</a></li>
+            <li><a href="#" class="active"><i class="fas fa-download"></i> Downloads</a></li>
             <li><a href="user_payfees.jsp"><i class="fas fa-file-invoice-dollar"></i> Payments</a></li>
             <li><a href="user_status.jsp"><i class="fas fa-check-circle"></i> Status</a></li>
         </ul>

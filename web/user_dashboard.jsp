@@ -214,8 +214,8 @@
     <aside class="side-panel">
         <h2>Student Menu</h2>
         <ul class="side-panel-nav">
-            <li><a href="#"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
-            <li><a href="user_apply.jsp" class="active"><i class="fas fa-file-alt"></i> Apply</a></li>
+            <li><a href="#" class="active"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+            <li><a href="user_apply.jsp"><i class="fas fa-file-alt"></i> Apply</a></li>
             <li><a href="user_profile.jsp"><i class="fas fa-user-circle"></i> Profile</a></li>
             <li><a href="user_downloads.jsp"><i class="fas fa-download"></i> Downloads</a></li>
             <li><a href="user_payfees.jsp"><i class="fas fa-file-invoice-dollar"></i> Payments</a></li>
@@ -232,13 +232,13 @@
 
         <!-- Quick Actions -->
         <div class="quick-actions">
-            <a href="apply.jsp" class="action-card">
+            <a href="user_apply.jsp" class="action-card">
                 <i class="fas fa-file-signature icon"></i>
                 <div>
                     <span class="title">Apply for Hostel</span>
                 </div>
             </a>
-            <a href="payments.jsp" class="action-card">
+            <a href="user_payfees.jsp" class="action-card">
                 <i class="fas fa-credit-card icon"></i>
                 <div>
                     <span class="title">Pay Fees</span>
@@ -256,7 +256,7 @@
                     <p class="status-description">Please complete your profile to apply for a hostel.</p>
                 </div>
                 <div class="status-card-footer">
-                    <a href="profile.jsp">Update Profile &rarr;</a>
+                    <a href="user_profile.jsp">Update Profile &rarr;</a>
                 </div>
             </div>
             <div class="status-card">
@@ -267,7 +267,7 @@
                      <p class="status-description">Your application is under review by the administration.</p>
                 </div>
                 <div class="status-card-footer">
-                    <a href="status.jsp">Check Details &rarr;</a>
+                    <a href="user_status.jsp">Check Details &rarr;</a>
                 </div>
             </div>
             <div class="status-card">
@@ -278,7 +278,7 @@
                     <p class="status-description">Your fee payment has been successfully received.</p>
                 </div>
                 <div class="status-card-footer">
-                    <a href="payments.jsp">View History &rarr;</a>
+                    <a href="user_payfees.jsp">View History &rarr;</a>
                 </div>
             </div>
         </div>
