@@ -200,7 +200,7 @@
         .password-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .submit-btn {
             width: 100%;
-            background-color: var(--accent-color);
+            background-color: #28a745;
             color: white;
             padding: 14px;
             border: none;
@@ -211,7 +211,7 @@
             margin-top: 10px;
             transition: background-color 0.3s ease;
         }
-        .submit-btn:hover { background-color: #1e40af; }
+        .submit-btn:hover { background-color: #218838; }
         .divider {
             height: 350px;
             border-left: 1px solid var(--border-color);
