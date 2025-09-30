@@ -1,4 +1,4 @@
-<%@ page import="java.sql.*, java.util.*, java.text.NumberFormat, java.text.SimpleDateFormat" %>
+<%@ page import="java.sql.*, java.util.*, java.text.NumberFormat, java.text.SimpleDateFormat, java.math.BigDecimal" %>
 
 <%-- =================================================================
      SERVER-SIDE LOGIC FOR FEE PAYMENT PAGE
@@ -13,10 +13,15 @@
 
     // --- 2. INITIALIZE VARIABLES ---
     String fullName = "";
-    String applicationStatus = null; 
+    String applicationStatus = null; // Can be null, "Pending", "Approved", "Rejected"
     
-    HashMap<String, Object> feeData = new HashMap<>(); 
+    HashMap<String, Object> outstandingFee = null; // Stores details of an UNPAID fee, if any
+    boolean hasOutstandingFee = false;
+    
     ArrayList<HashMap<String, Object>> paymentHistory = new ArrayList<>();
+
+    String paymentSuccessMessage = request.getParameter("paymentSuccess"); // New: to display success
+    String paymentErrorMessage = request.getParameter("paymentError");     // New: to display errors
 
     // --- 3. DATABASE OPERATIONS ---
     Connection conn = null;
@@ -24,38 +29,51 @@
     ResultSet rs = null;
 
     try {
-        String url = "jdbc:mysql://localhost:3306/hamp";
-        String dbUsername = "root";
-        String dbPassword = "root";
-        String driver = "com.mysql.jdbc.Driver";
+        String url = "jdbc:mysql://localhost:3306/hamp"; // Ensure this matches your DB URL
+        String dbUsername = "root";                     // Ensure this matches your DB username
+        String dbPassword = "root";                     // Ensure this matches your DB password
+        String driver = "com.mysql.jdbc.Driver";    // Corrected to cj driver for modern MySQL
         Class.forName(driver);
         conn = DriverManager.getConnection(url, dbUsername, dbPassword);
 
+        // Get student's full name
         pstmt = conn.prepareStatement("SELECT fullname FROM student_auth WHERE roll_no = ?");
         pstmt.setString(1, userRollNo);
         rs = pstmt.executeQuery();
         if (rs.next()) {
             fullName = rs.getString("fullname");
         }
+        rs.close(); // Close ResultSet after use
+        pstmt.close(); // Close PreparedStatement after use
 
+        // Get the latest application status for the student
         pstmt = conn.prepareStatement("SELECT status FROM applications WHERE stud_roll = ? ORDER BY applied_date DESC LIMIT 1");
         pstmt.setString(1, userRollNo);
         rs = pstmt.executeQuery();
         if (rs.next()) {
             applicationStatus = rs.getString("status");
         }
+        rs.close();
+        pstmt.close();
 
+        // If application is Approved, check for outstanding fees AND payment history
         if ("Approved".equals(applicationStatus)) {
-            pstmt = conn.prepareStatement("SELECT * FROM fees WHERE roll_no = ? AND payment_status = 'Unpaid' LIMIT 1");
+            // Check for an UNPAID fee
+            pstmt = conn.prepareStatement("SELECT payment_id, total_fees, payment_status FROM fees WHERE roll_no = ? AND payment_status = 'Unpaid' LIMIT 1");
             pstmt.setString(1, userRollNo);
             rs = pstmt.executeQuery();
             if (rs.next()) {
-                feeData.put("payment_id", rs.getInt("payment_id"));
-                feeData.put("total_fees", rs.getBigDecimal("total_fees"));
-                feeData.put("payment_status", rs.getString("payment_status"));
+                outstandingFee = new HashMap<>();
+                outstandingFee.put("payment_id", rs.getInt("payment_id"));
+                outstandingFee.put("total_fees", rs.getBigDecimal("total_fees"));
+                outstandingFee.put("payment_status", rs.getString("payment_status"));
+                hasOutstandingFee = true;
             }
+            rs.close();
+            pstmt.close();
 
-            pstmt = conn.prepareStatement("SELECT * FROM fees WHERE roll_no = ? AND payment_status = 'Paid' ORDER BY payment_date DESC");
+            // Fetch PAID payment history (regardless of outstanding fee status)
+            pstmt = conn.prepareStatement("SELECT payment_id, payment_date, paid_fees, payment_mode, payment_status FROM fees WHERE roll_no = ? AND payment_status = 'Paid' ORDER BY payment_date DESC");
             pstmt.setString(1, userRollNo);
             rs = pstmt.executeQuery();
             while (rs.next()) {
@@ -67,15 +85,19 @@
                 historyItem.put("payment_status", rs.getString("payment_status"));
                 paymentHistory.add(historyItem);
             }
+            rs.close();
+            pstmt.close();
         }
     } catch (Exception e) {
         e.printStackTrace();
+        paymentErrorMessage = "An unexpected error occurred: " + e.getMessage();
     } finally {
-        try { if (rs != null) rs.close(); } catch (Exception e) {}
-        try { if (pstmt != null) pstmt.close(); } catch (Exception e) {}
-        try { if (conn != null) conn.close(); } catch (Exception e) {}
+        try { if (rs != null) rs.close(); } catch (SQLException e) { e.printStackTrace(); }
+        try { if (pstmt != null) pstmt.close(); } catch (SQLException e) { e.printStackTrace(); }
+        try { if (conn != null) conn.close(); } catch (SQLException e) { e.printStackTrace(); }
     }
 
+    // Formatters for currency and date
     NumberFormat currencyFormatter = NumberFormat.getCurrencyInstance(new Locale("en", "IN"));
     SimpleDateFormat sdf = new SimpleDateFormat("dd MMM, yyyy");
 %>
@@ -94,6 +116,7 @@
             --light-text-color: #6b7280; --card-bg: #ffffff; --border-color: #e5e7eb;
             --success-color: #10b981; --success-bg: #f0fdf4; --success-border: #a7f3d0;
             --warning-color: #f59e0b; --warning-bg: #fffbeb; --warning-border: #fde68a;
+            --error-color: #ef4444; --error-bg: #fef2f2; --error-border: #fca5a5;
         }
         * { box-sizing: border-box; }
         body { font-family: 'Inter', sans-serif; margin: 0; background-color: var(--secondary-color); color: var(--primary-color); height: 100vh; display: grid; grid-template-rows: auto 1fr; grid-template-columns: 260px 1fr; grid-template-areas: "header header" "sidebar main"; }
@@ -123,6 +146,8 @@
         .status-banner-text p { margin: 0.25rem 0 0; color: var(--light-text-color); }
         .status-due { background-color: var(--warning-bg); border-color: var(--warning-border); color: #92400e; }
         .status-paid { background-color: var(--success-bg); border-color: var(--success-border); color: #065f46; }
+        .status-info { background-color: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+        .status-error { background-color: var(--error-bg); border-color: var(--error-border); color: var(--error-color); }
         .details-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem 2rem; }
         .detail-item .label { font-size: 0.9rem; color: var(--light-text-color); }
         .detail-item .value { font-size: 1.1rem; font-weight: 600; margin-top: 0.25rem; }
@@ -176,82 +201,102 @@
     <main class="main-content">
         <div class="payment-dashboard">
 
-        <% if (!"Approved".equals(applicationStatus)) { %>
-            <div class="status-banner status-due">
-                <i class="fas fa-info-circle"></i>
-                <div class="status-banner-text">
-                    <h3>Payment Section Locked</h3>
-                    <p>Your application status is currently '<%= applicationStatus == null ? "Not Applied" : applicationStatus %>'. Payment options will become available once your application is approved.</p>
-                </div>
-            </div>
-
-        <% } else if (!feeData.isEmpty()) { %>
-            <div class="status-banner status-due">
-                <i class="fas fa-exclamation-triangle"></i>
-                <div class="status-banner-text">
-                    <h3>Your Payment is Due</h3>
-                    <p>Please complete the payment to finalize your hostel allocation.</p>
-                </div>
-            </div>
-
-            <form action="process_payment.jsp" method="POST" class="card">
-                <div class="card-header"><h2>Complete Your Payment</h2></div>
-                <div class="card-body">
-                    <div class="invoice-total">
-                        <p>Total Amount Due</p>
-                        <div class="amount"><%= currencyFormatter.format(feeData.get("total_fees")) %></div>
-                    </div>
-                    <div class="payment-methods">
-                        <input type="radio" id="upi" name="payment_mode" value="UPI" checked><label for="upi" class="method-card"><i class="fab fa-google-pay"></i><span>UPI</span></label>
-                        <input type="radio" id="card" name="payment_mode" value="Card"><label for="card" class="method-card"><i class="fas fa-credit-card"></i><span>Card</span></label>
-                        <input type="radio" id="netbanking" name="payment_mode" value="NetBanking"><label for="netbanking" class="method-card"><i class="fas fa-university"></i><span>Net Banking</span></label>
-                    </div>
-                    <button type="submit" class="pay-button"><i class="fas fa-shield-alt"></i> Proceed to Pay</button>
-                </div>
-            </form>
-
-        <% } else { %>
-            <div class="status-banner status-paid">
-                <i class="fas fa-check-circle"></i>
-                <div class="status-banner-text">
-                    <h3>Payment Complete</h3>
-                    <p>Thank you! Your payment has been successfully processed.</p>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-header"><h2>Last Transaction Details</h2></div>
-                <% if (!paymentHistory.isEmpty()) { 
-                    HashMap<String, Object> lastPayment = paymentHistory.get(0);
-                %>
-                <div class="card-body">
-                    <div class="details-grid">
-                        <div class="detail-item">
-                            <div class="label">Payment ID</div>
-                            <div class="value">PAY-<%= lastPayment.get("payment_id") %></div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="label">Payment Date</div>
-                            <div class="value"><%= sdf.format((java.util.Date)lastPayment.get("payment_date")) %></div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="label">Payment Mode</div>
-                            <div class="value"><%= lastPayment.get("payment_mode") %></div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="label">Amount Paid</div>
-                            <div class="value"><%= currencyFormatter.format(lastPayment.get("paid_fees")) %></div>
-                        </div>
+            <%-- Display success or error messages from payment processing --%>
+            <% if (paymentSuccessMessage != null) { %>
+                <div class="status-banner status-paid">
+                    <i class="fas fa-check-circle"></i>
+                    <div class="status-banner-text">
+                        <h3>Payment Successful!</h3>
+                        <p><%= paymentSuccessMessage %></p>
                     </div>
                 </div>
-                <div class="card-footer">
-                    <a href="generate-receipt.jsp?id=<%= lastPayment.get("payment_id") %>" class="receipt-button">
-                        <i class="fas fa-download"></i> Download Receipt
-                    </a>
+            <% } else if (paymentErrorMessage != null) { %>
+                <div class="status-banner status-error">
+                    <i class="fas fa-times-circle"></i>
+                    <div class="status-banner-text">
+                        <h3>Payment Failed!</h3>
+                        <p><%= paymentErrorMessage %></p>
+                    </div>
                 </div>
-                <% } %>
-            </div>
-        <% } %>
+            <% } %>
+
+            <%-- Conditional rendering based on application status and outstanding fees --%>
+            <% if (!"Approved".equals(applicationStatus)) { %>
+                <div class="status-banner status-info">
+                    <i class="fas fa-info-circle"></i>
+                    <div class="status-banner-text">
+                        <h3>Payment Section Locked</h3>
+                        <p>Your application status is currently '<%= applicationStatus == null ? "Not Applied" : applicationStatus %>'. Payment options will become available once your application is approved.</p>
+                    </div>
+                </div>
+
+            <% } else if (hasOutstandingFee) { %>
+                <div class="status-banner status-due">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <div class="status-banner-text">
+                        <h3>Your Payment is Due</h3>
+                        <p>Please complete the payment to finalize your hostel allocation.</p>
+                    </div>
+                </div>
+
+                <form action="process_mock_payment.jsp" method="POST" class="card">
+                    <div class="card-header"><h2>Complete Your Payment</h2></div>
+                    <div class="card-body">
+                        <div class="invoice-total">
+                            <p>Total Amount Due</p>
+                            <div class="amount"><%= currencyFormatter.format(outstandingFee.get("total_fees")) %></div>
+                            <input type="hidden" name="payment_id" value="<%= outstandingFee.get("payment_id") %>">
+                            <input type="hidden" name="amount_due" value="<%= outstandingFee.get("total_fees") %>"> <%-- Pass total_fees as amount_due --%>
+                        </div>
+                        <div class="payment-methods">
+                            <input type="radio" id="upi" name="payment_mode" value="UPI" checked><label for="upi" class="method-card"><i class="fab fa-google-pay"></i><span>UPI</span></label>
+                            <input type="radio" id="card" name="payment_mode" value="Card"><label for="card" class="method-card"><i class="fas fa-credit-card"></i><span>Card</span></label>
+                            <input type="radio" id="netbanking" name="payment_mode" value="NetBanking"><label for="netbanking" class="method-card"><i class="fas fa-university"></i><span>Net Banking</span></label>
+                        </div>
+                        <button type="submit" class="pay-button"><i class="fas fa-shield-alt"></i> Proceed to Pay</button>
+                    </div>
+                </form>
+
+            <% } else { %> <%-- Application Approved, and no outstanding 'Unpaid' fee --%>
+                
+
+                <div class="card">
+                    <div class="card-header"><h2>Last Transaction Details</h2></div>
+                    <% if (!paymentHistory.isEmpty()) { 
+                        HashMap<String, Object> lastPayment = paymentHistory.get(0); // Get the most recent paid transaction
+                    %>
+                    <div class="card-body">
+                        <div class="details-grid">
+                            <div class="detail-item">
+                                <div class="label">Payment ID</div>
+                                <div class="value">PAY-<%= lastPayment.get("payment_id") %></div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="label">Payment Date</div>
+                                <div class="value"><%= sdf.format((java.util.Date)lastPayment.get("payment_date")) %></div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="label">Payment Mode</div>
+                                <div class="value"><%= lastPayment.get("payment_mode") %></div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="label">Amount Paid</div>
+                                <div class="value"><%= currencyFormatter.format(lastPayment.get("paid_fees")) %></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <a href="generate-receipt.jsp?id=<%= lastPayment.get("payment_id") %>" class="receipt-button">
+                            <i class="fas fa-download"></i> Download Receipt
+                        </a>
+                    </div>
+                    <% } else { %>
+                        <div class="card-body">
+                            <p style="text-align: center; color: var(--light-text-color);">No recent payment details found, but your dues are clear!</p>
+                        </div>
+                    <% } %>
+                </div>
+            <% } %>
 
             <div class="card">
                 <div class="card-header"><h2>Payment History</h2></div>

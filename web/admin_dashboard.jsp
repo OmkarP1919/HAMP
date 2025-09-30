@@ -235,7 +235,7 @@
         <div class="logo-title"><h1>Hostel Mate</h1></div>
         <div class="user-menu">
             <span class="user-info"><i class="fas fa-user-circle"></i> Welcome, <%= adminName %></span>
-            <a href="admin_logout.jsp" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            <a href="admin_login.jsp" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>
     </header>
 
