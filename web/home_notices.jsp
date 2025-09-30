@@ -70,37 +70,42 @@
             opacity: 1;
             background-color: rgba(255, 255, 255, 0.15);
         }
-        /* --- NEW DROPDOWN STYLES --- */
+        /* --- CORRECTED DROPDOWN STYLES --- */
         .dropdown {
             position: relative;
             display: inline-block;
         }
         .dropdown .dropbtn {
-            display: flex;
+            display: flex; /* Ensures caret is aligned */
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.5rem; /* Space between text and icon */
             cursor: pointer;
+            /* Inherits padding, color, etc. from .navbar a */
         }
         .dropdown-content {
             display: none;
             position: absolute;
             background-color: var(--card-bg);
-            min-width: 200px;
+            min-width: 180px;
             box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.1);
             z-index: 1;
             border-radius: 8px;
-            margin-top: 10px;
+            /* Important fix: removed margin-top to prevent gap */
+            top: 100%; /* Position right below the button */
+            left: 0; /* Align left with the button */
+            padding-top: 0.5rem; /* Visual space but still part of dropdown hover area */
             overflow: hidden;
         }
         .dropdown-content a {
             color: var(--primary-color);
-            padding: 12px 16px;
+            padding: 10px 16px; /* Adjusted padding for dropdown items */
             text-decoration: none;
             display: block;
             text-align: left;
             font-weight: 500;
             background-color: transparent;
             opacity: 1;
+            white-space: nowrap; /* Prevent items from wrapping */
         }
         .dropdown-content a:hover {
             background-color: var(--secondary-color);
