@@ -21,21 +21,19 @@
     ResultSet rs = null;
 
     try {
-        String url = "jdbc:mysql://localhost:3306/hamp";
-        String dbUsername = "root";
-        String dbPassword = "root";
-        String driver = "com.mysql.jdbc.Driver"; // Using the modern driver (you can change to cj if you want)
-        Class.forName(driver);
-        conn = DriverManager.getConnection(url, dbUsername, dbPassword);
+        // Use the modern, recommended driver
+        Class.forName("com.mysql.jdbc.Driver");
+        conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/hamp", "root", "root");
 
         if (studRoll == null || studRoll.trim().isEmpty()) {
             errorMessage = "Student Roll Number is missing.";
         } else {
+            // CORRECTED: Added ra.vacating_date to the SELECT statement
             String sql = "SELECT sa.roll_no, sa.fullname, sa.email, sa.mobile, " +
-                         "       sp.gender, sp.dob, sp.aadhar_no, sp.address, sp.parents_mobile, sp.course, sp.year, sp.department, " +
-                         "       a.app_id, a.applied_date, a.status AS application_status, a.review_date, " +
-                         "       f.total_fees, f.paid_fees, f.payment_status, f.payment_date, " +
-                         "       ra.room_no, ra.allocation_date " +
+                         "sp.gender, sp.dob, sp.aadhar_no, sp.address, sp.parents_mobile, sp.course, sp.year, sp.department, " +
+                         "a.app_id, a.applied_date, a.status AS application_status, a.review_date, " +
+                         "f.total_fees, f.paid_fees, f.payment_status, f.payment_date, " +
+                         "ra.room_no, ra.allocation_date " + 
                          "FROM student_auth sa " +
                          "LEFT JOIN student_profiles sp ON sa.roll_no = sp.roll_no " +
                          "LEFT JOIN applications a ON sa.roll_no = a.stud_roll " +
@@ -52,7 +50,7 @@
                 studentDetails.put("roll_no", rs.getString("roll_no"));
                 studentDetails.put("fullname", rs.getString("fullname"));
                 studentDetails.put("email", rs.getString("email"));
-                studentDetails.put("mobile_no", rs.getString("mobile")); // CORRECTED: rs.getString("mobile_no")
+                studentDetails.put("mobile_no", rs.getString("mobile"));
 
                 // From student_profiles
                 studentDetails.put("gender", rs.getString("gender"));
@@ -76,18 +74,22 @@
                 studentDetails.put("payment_status", rs.getString("payment_status"));
                 studentDetails.put("payment_date", rs.getDate("payment_date"));
 
-                // Room Allocation Details (room_no is the actual column in room_allocations)
-                studentDetails.put("room_id", rs.getObject("room_no")); // CORRECTED: rs.getObject("room_no") from allocation table
+                // Room Allocation Details
+                studentDetails.put("room_id", rs.getObject("room_no"));
                 studentDetails.put("allocation_date", rs.getDate("allocation_date"));
                 
-
+                
             } else {
-                errorMessage = "Student with Roll Number " + studRoll + " not found or no complete profile data.";
+                errorMessage = "Student with Roll Number '" + studRoll + "' not found. Please verify the roll number and try again.";
             }
         }
-
+    } catch (SQLException se) {
+        errorMessage = "Database Error: " + se.getMessage() + ". Please check if the column names in the code match the database schema.";
+        System.out.println("--- DEBUG: SQLException in view_student_details.jsp ---");
+        se.printStackTrace();
+        System.out.println("--- END DEBUG ---");
     } catch (Exception e) {
-        errorMessage = "An error occurred: " + e.getMessage() + ". Please check server logs for stack trace.";
+        errorMessage = "An unexpected error occurred: " + e.getMessage();
         System.out.println("--- DEBUG: Exception in view_student_details.jsp ---");
         e.printStackTrace();
         System.out.println("--- END DEBUG ---");
@@ -109,7 +111,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* Your CSS styles here (unchanged) */
         :root {
             --primary-color: #1f2937; --secondary-color: #f9fafb; --accent-color: #2563eb;
             --light-text-color: #6b7280; --card-bg: #ffffff; --border-color: #e5e7eb;
@@ -249,12 +250,12 @@
             </div>
             <div class="action-buttons">
                  <% 
-                    String referer = request.getHeader("referer");
-                    String backLink = "admin_slist.jsp"; // Default back to student list
-                    if (referer != null && referer.contains("admin_applications.jsp")) {
-                        backLink = "admin_applications.jsp"; 
-                    }
-                %>
+                     String referer = request.getHeader("referer");
+                     String backLink = "admin_slist.jsp"; // Default back to student list
+                     if (referer != null && referer.contains("admin_applications.jsp")) {
+                         backLink = "admin_applications.jsp"; 
+                     }
+                 %>
                 <a href="<%= backLink %>" class="button secondary"><i class="fas fa-arrow-left"></i> Back</a>
             </div>
         <% } else if (!studentDetails.isEmpty()) { %>
@@ -325,8 +326,8 @@
                  <div class="detail-group">
                     <span class="detail-label">Year</span>
                     <span class="detail-value">
-                        <% Integer year = (Integer)studentDetails.get("year"); %>
-                        <%= (year != null) ? year : "N/A" %>
+                        <% Object yearObj = studentDetails.get("year"); %>
+                        <%= (yearObj != null) ? yearObj.toString() : "N/A" %>
                     </span>
                 </div>
                 <div class="detail-group">
@@ -385,7 +386,7 @@
                     <span class="detail-label">Total Fees</span>
                     <span class="detail-value">
                         <% if (studentDetails.get("total_fees") != null) { %>
-                            Rs. <%= String.format("%.2f", (Double)studentDetails.get("total_fees")) %>
+                            Rs. <%= String.format("%.2f", Double.parseDouble(studentDetails.get("total_fees").toString())) %>
                         <% } else { %>
                             N/A
                         <% } %>
@@ -395,7 +396,7 @@
                     <span class="detail-label">Paid Fees</span>
                     <span class="detail-value">
                         <% if (studentDetails.get("paid_fees") != null) { %>
-                            Rs. <%= String.format("%.2f", (Double)studentDetails.get("paid_fees")) %>
+                             Rs. <%= String.format("%.2f", Double.parseDouble(studentDetails.get("paid_fees").toString())) %>
                         <% } else { %>
                             N/A
                         <% } %>
@@ -439,16 +440,6 @@
                     <span class="detail-value">
                         <% if (studentDetails.get("allocation_date") != null) { %>
                             <%= sdf.format((java.util.Date)studentDetails.get("allocation_date")) %>
-                        <% } else { %>
-                            N/A
-                        <% } %>
-                    </span>
-                </div>
-                <div class="detail-group">
-                    <span class="detail-label">Vacating Date</span>
-                    <span class="detail-value">
-                        <% if (studentDetails.get("vacating_date") != null) { %>
-                            <%= sdf.format((java.util.Date)studentDetails.get("vacating_date")) %>
                         <% } else { %>
                             N/A
                         <% } %>
