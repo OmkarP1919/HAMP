@@ -25,8 +25,8 @@
         String url = "jdbc:mysql://localhost:3306/hamp";
         String dbUsername = "root";
         String dbPassword = "root";
-        // Using the modern driver for MySQL Connector/J 8.0+
-        String driver = "com.mysql.jdbc.Driver"; // Corrected driver name
+        // Corrected to the modern driver for MySQL Connector/J 8.0+
+        String driver = "com.mysql.jdbc.Driver"; 
         Class.forName(driver);
         conn = DriverManager.getConnection(url, dbUsername, dbPassword);
 
@@ -39,6 +39,7 @@
             String studentRollNo = null;
 
             // Get the student's roll number for the given application (must be Pending)
+            // It's crucial to only process pending applications for approve/reject actions
             pstmt = conn.prepareStatement("SELECT stud_roll FROM applications WHERE app_id = ? AND status = 'Pending'");
             pstmt.setInt(1, appId);
             rs = pstmt.executeQuery();
@@ -46,13 +47,12 @@
             if (rs.next()) {
                 studentRollNo = rs.getString("stud_roll");
             }
-            rs.close(); // Close ResultSet after use
-            if (pstmt != null) pstmt.close(); // Close PreparedStatement after use - important for subsequent statements
+            rs.close(); 
+            if (pstmt != null) pstmt.close();
 
             if (studentRollNo != null) { // Proceed only if a pending application was found
                 String newStatus = "approve".equals(action) ? "Approved" : "Rejected";
                 
-                // Use a transaction to ensure both tables are updated correctly
                 conn.setAutoCommit(false); // Start transaction
                 
                 try {
@@ -65,13 +65,13 @@
 
                     // 2. If approved, create the fee record if one doesn't already exist
                     if ("Approved".equals(newStatus)) {
-                        // Check to prevent creating duplicate 'Unpaid' fees
-                        pstmt = conn.prepareStatement("SELECT COUNT(*) FROM fees WHERE roll_no = ? AND payment_status = 'Unpaid'");
+                        // Check for ANY fee record (paid or unpaid) to prevent duplicates
+                        pstmt = conn.prepareStatement("SELECT COUNT(*) FROM fees WHERE roll_no = ?"); 
                         pstmt.setString(1, studentRollNo);
                         rs = pstmt.executeQuery();
                         rs.next();
-                        if (rs.getInt(1) == 0) { // If no existing unpaid fee for this student
-                            double totalFees = 21000.00; // Example fee amount - adjust as needed
+                        if (rs.getInt(1) == 0) { // If no fee record exists for this student
+                            double totalFees = 21000.00; 
                             pstmt = conn.prepareStatement(
                                 "INSERT INTO fees (roll_no, total_fees, paid_fees, payment_status) VALUES (?, ?, 0.00, 'Unpaid')"
                             );
@@ -79,24 +79,23 @@
                             pstmt.setDouble(2, totalFees);
                             pstmt.executeUpdate();
                             if (pstmt != null) pstmt.close();
-                            successMessage = "Application #" + appId + " approved and fee generated.";
+                            successMessage = "Application #" + appId + " approved and fee generated as 'Unpaid'.";
                         } else {
-                            successMessage = "Application #" + appId + " approved. Fee already generated for this student.";
+                            successMessage = "Application #" + appId + " approved. A fee record already exists for this student.";
                         }
-                        if (rs != null) rs.close(); // Close ResultSet
+                        if (rs != null) rs.close();
                     } else { // If rejected
                         successMessage = "Application #" + appId + " has been rejected.";
                     }
                     
-                    conn.commit(); // Finalize the changes if all succeeded
+                    conn.commit(); 
 
                 } catch (SQLException e) {
-                    if (conn != null) conn.rollback(); // Undo changes if anything fails
+                    if (conn != null) conn.rollback();
                     errorMessage = "Database update failed. Transaction rolled back. Error: " + e.getMessage();
                     e.printStackTrace();
                 } finally {
-                    if (conn != null) conn.setAutoCommit(true); // Restore default auto-commit behavior
-                    // Ensure pstmt and rs are closed again even in finally block after a rollback
+                    if (conn != null) conn.setAutoCommit(true);
                     try { if (rs != null) rs.close(); } catch (SQLException e) { e.printStackTrace(); }
                     try { if (pstmt != null) pstmt.close(); } catch (SQLException e) { e.printStackTrace(); }
                 }
@@ -105,16 +104,22 @@
             }
         }
 
-        // --- 3B. FETCH ALL APPLICATIONS FOR DISPLAY ---
-        // Fetch application details along with payment status from the fees table
-        // AND room allocation status from the room_allocations table
+        // --- 3B. FETCH APPLICATIONS FOR DISPLAY ---
+        // ONLY show applications that are:
+        // 1. 'Pending'
+        // 2. 'Approved' with 'Unpaid' fees
+        // 3. 'Approved' with 'Paid' fees BUT 'Not Allocated' a room
+        // Students who are Approved, Paid, AND Allocated will NOT appear on this page.
         String sql = "SELECT a.app_id, sa.fullname, a.stud_roll, a.applied_date, a.status, " +
                      "       COALESCE(f.payment_status, 'N/A') as payment_status, " +
-                     "       CASE WHEN ra.room_no IS NOT NULL THEN 'Allocated' ELSE 'Not Allocated' END as room_allocation_status " +
+                     "       (ra.room_no IS NOT NULL) as is_allocated " + // true if allocated, false otherwise
                      "FROM applications a " +
                      "JOIN student_auth sa ON a.stud_roll = sa.roll_no " +
                      "LEFT JOIN fees f ON a.stud_roll = f.roll_no " +
-                     "LEFT JOIN room_allocations ra ON a.stud_roll = ra.roll_no " + // LEFT JOIN to get allocation status
+                     "LEFT JOIN room_allocations ra ON a.stud_roll = ra.roll_no " + // Left join to check allocation
+                     "WHERE a.status = 'Pending' " + // Case 1: Pending applications
+                     "   OR (a.status = 'Approved' AND COALESCE(f.payment_status, 'Unpaid') = 'Unpaid') " + // Case 2: Approved but Unpaid
+                     "   OR (a.status = 'Approved' AND f.payment_status = 'Paid' AND ra.room_no IS NULL) " + // Case 3: Approved, Paid, but NOT Allocated
                      "ORDER BY a.applied_date DESC";
         pstmt = conn.prepareStatement(sql);
         rs = pstmt.executeQuery();
@@ -127,7 +132,7 @@
             app.put("applied_on", rs.getDate("applied_date"));
             app.put("status", rs.getString("status"));
             app.put("payment_status", rs.getString("payment_status"));
-            app.put("room_allocation_status", rs.getString("room_allocation_status")); // Store allocation status
+            app.put("is_allocated", rs.getBoolean("is_allocated")); // Use boolean for simpler logic
             applications.add(app);
         }
 
@@ -135,7 +140,6 @@
         errorMessage = "An error occurred: " + e.getMessage();
         e.printStackTrace();
     } finally {
-        // Ensure all JDBC resources are closed
         try { if (rs != null) rs.close(); } catch (SQLException e) { e.printStackTrace(); }
         try { if (pstmt != null) pstmt.close(); } catch (SQLException e) { e.printStackTrace(); }
         try { if (conn != null) conn.close(); } catch (SQLException e) { e.printStackTrace(); }
@@ -200,11 +204,9 @@
         .status-badge.Pending { background-color: var(--pending-color); }
         .status-badge.Approved { background-color: var(--approved-color); }
         .status-badge.Rejected { background-color: var(--rejected-color); }
-        /* New badge for payment status */
         .status-badge.Paid { background-color: var(--approved-color); }
         .status-badge.Unpaid { background-color: var(--pending-color); }
-        .status-badge.N\/A { background-color: var(--light-text-color); }
-
+        .status-badge.N\/A { background-color: var(--light-text-color); } /* Added for non-applicable payment status */
 
         .action-buttons { display: flex; gap: 0.5rem; }
         .action-button { padding: 0.6rem 1rem; border-radius: 6px; font-weight: 500; text-decoration: none; cursor: pointer; transition: background-color 0.2s ease; font-size: 0.9rem; }
@@ -248,8 +250,6 @@
             <li><a href="admin_applications.jsp" class="active"><i class="fas fa-file-signature"></i> Applications</a></li>
             <li><a href="admin_slist.jsp"><i class="fas fa-users"></i> Students</a></li>
             <li><a href="admin_rooms.jsp"><i class="fas fa-bed"></i> Rooms</a></li>
-            <%-- Removed "Allocate Room" from here --%>
-            <%-- <li><a href="admin_allocate_room.jsp"><i class="fas fa-person-booth"></i> Allocate Room</a></li> --%>
         </ul>
     </aside>
     <main class="main-content">
@@ -296,7 +296,7 @@
                                         <%
                                             String appStatus = (String)app.get("status");
                                             String paymentStatus = (String)app.get("payment_status");
-                                            String roomAllocationStatus = (String)app.get("room_allocation_status"); // Get the new status
+                                            boolean isAllocated = (Boolean)app.get("is_allocated"); 
                                             String currentRollNo = (String)app.get("roll_no");
                                             int currentAppId = (Integer)app.get("app_id");
                                         %>
@@ -305,14 +305,11 @@
                                             <a href="view_application.jsp?app_id=<%= currentAppId %>" class="action-button view-form"><i class="fas fa-eye"></i> View Form</a>
                                             <a href="admin_applications.jsp?action=approve&app_id=<%= currentAppId %>" class="action-button approve" onclick="return confirm('Are you sure you want to approve this application and generate fee?');">Approve</a>
                                             <a href="admin_applications.jsp?action=reject&app_id=<%= currentAppId %>" class="action-button reject" onclick="return confirm('Are you sure you want to reject this application?');">Reject</a>
-                                        <% } else if ("Approved".equals(appStatus) && "Paid".equals(paymentStatus) && "Not Allocated".equals(roomAllocationStatus)) { %>
+                                        <% } else if ("Approved".equals(appStatus) && "Paid".equals(paymentStatus) && !isAllocated) { %>
                                             <%-- Show Allocate Room button ONLY if Approved, Paid, AND Not Allocated --%>
                                             <a href="admin_allocate_room.jsp?stud_roll=<%= currentRollNo %>" class="action-button allocate"><i class="fas fa-person-booth"></i> Allocate Room</a>
-                                        <% } else if ("Approved".equals(appStatus) && "Paid".equals(paymentStatus) && "Allocated".equals(roomAllocationStatus)) { %>
-                                            <%-- Show a re-allocate button or just "Allocated" status if already allocated --%>
-                                            <a href="admin_allocate_room.jsp?stud_roll=<%= currentRollNo %>" class="action-button allocate" title="Student is already allocated a room. Click to re-allocate if needed."><i class="fas fa-exchange-alt"></i> Re-allocate Room</a>
                                         <% } else { %>
-                                            <%-- For Rejected, or Approved but Unpaid/N/A applications, or Approved/Paid/Allocated, show no actions --%>
+                                            <%-- For Rejected, Approved but Unpaid/N/A, or Approved/Paid/Allocated, show no specific actions here --%>
                                             <span class="action-button view disabled" style="opacity: 0.7; cursor: not-allowed;">No Actions</span>
                                         <% } %>
                                     </td>

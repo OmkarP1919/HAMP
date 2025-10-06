@@ -1,7 +1,7 @@
 <%@ page import="java.sql.*, java.util.*, java.text.SimpleDateFormat" %>
 
 <%-- =================================================================
-     SERVER-SIDE LOGIC FOR ADMIN STUDENT LIST PAGE
+     SERVER-SIDE LOGIC FOR STUDENT LIST (ALLOCATED STUDENTS ONLY)
      ================================================================= --%>
 <%
     // --- 1. SESSION SECURITY CHECK ---
@@ -12,7 +12,8 @@
     String adminName = (String) session.getAttribute("admin_name");
 
     // --- 2. INITIALIZE VARIABLES ---
-    List<HashMap<String, String>> studentList = new ArrayList<>();
+    List<HashMap<String, String>> allocatedStudents = new ArrayList<>();
+    String errorMessage = null;
 
     // --- 3. DATABASE OPERATIONS ---
     Connection conn = null;
@@ -23,21 +24,17 @@
         String url = "jdbc:mysql://localhost:3306/hamp";
         String dbUsername = "root";
         String dbPassword = "root";
-        String driver = "com.mysql.jdbc.Driver";
+        // Corrected to the modern driver for MySQL Connector/J 8.0+
+        String driver = "com.mysql.jdbc.Driver"; 
         Class.forName(driver);
         conn = DriverManager.getConnection(url, dbUsername, dbPassword);
 
-        // --- 3B. FETCH ALL ALLOCATED STUDENTS FOR DISPLAY ---
-        // This query joins 5 tables to get all required information
-        String sql = "SELECT " +
-                     "sa.roll_no, sa.fullname, sp.course, sp.year, h.hostel_name, ra.room_no " +
-                     "FROM room_allocations ra " +
-                     "JOIN student_auth sa ON ra.roll_no = sa.roll_no " +
-                     "JOIN student_profiles sp ON ra.roll_no = sp.roll_no " +
-                     "JOIN room r ON ra.room_no = r.room_no " +
-                     "JOIN hostels h ON r.hostel_id = h.hostel_id " +
-                     "ORDER BY h.hostel_name, ra.room_no, sa.fullname";
-                     
+        // Fetch ONLY students who have a room allocation
+        String sql = "SELECT sa.roll_no, sa.fullname, sa.email, sa.mobile, " +
+                     "       ra.room_no, ra.allocation_date " +
+                     "FROM student_auth sa " +
+                     "JOIN room_allocations ra ON sa.roll_no = ra.roll_no " + // INNER JOIN to only get allocated students
+                     "ORDER BY sa.fullname";
         pstmt = conn.prepareStatement(sql);
         rs = pstmt.executeQuery();
 
@@ -45,36 +42,38 @@
             HashMap<String, String> student = new HashMap<>();
             student.put("roll_no", rs.getString("roll_no"));
             student.put("fullname", rs.getString("fullname"));
-            student.put("course", rs.getString("course"));
-            student.put("year", rs.getString("year"));
-            student.put("hostel_name", rs.getString("hostel_name"));
+            student.put("email", rs.getString("email"));
+            student.put("phone", rs.getString("mobile"));
             student.put("room_no", rs.getString("room_no"));
-            studentList.add(student);
+            student.put("allocation_date", new SimpleDateFormat("dd-MMM-yyyy").format(rs.getDate("allocation_date")));
+            allocatedStudents.add(student);
         }
 
     } catch (Exception e) {
-        // You can add more robust error handling here
+        errorMessage = "An error occurred while fetching student list: " + e.getMessage();
         e.printStackTrace();
     } finally {
-        try { if (rs != null) rs.close(); } catch (Exception e) {}
-        try { if (pstmt != null) pstmt.close(); } catch (Exception e) {}
-        try { if (conn != null) conn.close(); } catch (Exception e) {}
+        try { if (rs != null) rs.close(); } catch (SQLException e) { e.printStackTrace(); }
+        try { if (pstmt != null) pstmt.close(); } catch (SQLException e) { e.printStackTrace(); }
+        try { if (conn != null) conn.close(); } catch (SQLException e) { e.printStackTrace(); }
     }
 %>
-
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Management</title>
+    <title>Allocated Students List</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary-color: #1f2937; --secondary-color: #f9fafb; --accent-color: #2563eb;
             --light-text-color: #6b7280; --card-bg: #ffffff; --border-color: #e5e7eb;
+            --approved-color: #10b981; --approved-bg: #f0fdf4; --approved-border: #a7f3d0;
+            --error-color: #ef4444; --error-bg: #fef2f2; --error-border: #fca5a5;
+            --view-detail-color: #4f46e5; /* Indigo-600 */
         }
         * { box-sizing: border-box; }
         body {
@@ -98,23 +97,23 @@
         .side-panel-nav li a.active { background-color: var(--accent-color); color: white; font-weight: 600; }
         .side-panel-nav li a i { width: 20px; text-align: center; }
         .main-content { grid-area: main; padding: 2.5rem; overflow-y: auto; }
-        .page-header h1 { font-size: 2rem; font-weight: 800; margin: 0 0 2.5rem 0; }
-        .card { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        .filter-bar { padding: 1.5rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; border-bottom: 1px solid var(--border-color); }
-        .search-group { flex-grow: 1; position: relative; }
-        .search-group i { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--light-text-color); }
-        .search-group input, .filter-group select { padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-color); font-size: 1rem; font-family: 'Inter', sans-serif; }
-        .search-group input { padding-left: 2.75rem; width: 100%; }
-        .filter-group select { min-width: 150px; }
-        .button-filter { padding: 0.75rem 1.5rem; border: none; border-radius: 8px; background-color: var(--accent-color); color: white; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background-color 0.2s ease; }
+        .page-header h1 { font-size: 2rem; font-weight: 800; margin: 0 0 1.5rem 0; }
+        .message-box { padding: 1rem; margin-bottom: 1.5rem; border-radius: 8px; font-weight: 500; }
+        .message-box.error { background-color: var(--error-bg); border: 1px solid var(--error-border); color: var(--error-color); }
+        .card { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 2rem; }
         .table-container { width: 100%; overflow-x: auto; }
-        .student-table { width: 100%; border-collapse: collapse; }
-        .student-table th, .student-table td { padding: 1.25rem 1.5rem; text-align: left; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
-        .student-table thead { background-color: var(--secondary-color); }
-        .student-table th { font-size: 0.85rem; font-weight: 600; text-transform: uppercase; color: var(--light-text-color); }
-        .student-table tbody tr:hover { background-color: var(--secondary-color); }
-        .button-action { padding: 0.5rem 1rem; border-radius: 6px; font-weight: 500; text-decoration: none; background-color: var(--card-bg); border: 1px solid var(--border-color); color: var(--primary-color); cursor: pointer; transition: all 0.2s ease; }
-        .button-action:hover { background-color: var(--secondary-color); border-color: #d1d5db; }
+        .students-table { width: 100%; border-collapse: collapse; }
+        .students-table th, .students-table td { padding: 1.25rem 1.5rem; text-align: left; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
+        .students-table thead { background-color: var(--secondary-color); }
+        .students-table th { font-size: 0.85rem; font-weight: 600; text-transform: uppercase; color: var(--light-text-color); }
+        .students-table tbody tr:hover { background-color: var(--secondary-color); }
+        .action-button { 
+            padding: 0.6rem 1rem; border-radius: 6px; font-weight: 500; text-decoration: none; 
+            cursor: pointer; transition: background-color 0.2s ease; font-size: 0.9rem;
+            background-color: var(--view-detail-color); color: white; border: 1px solid var(--view-detail-color);
+        }
+        .action-button:hover { background-color: #3730a3; } /* Darker indigo */
+
         @media (max-width: 992px) {
             body { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; grid-template-areas: "header" "sidebar" "main"; }
             .side-panel { border-right: none; border-bottom: 1px solid var(--border-color); }
@@ -141,57 +140,49 @@
     </aside>
     <main class="main-content">
         <div class="page-header">
-            <h1>Student Management</h1>
+            <h1>Allocated Students</h1>
+            <% if (errorMessage != null) { %>
+                <div class="message-box error"><%= errorMessage %></div>
+            <% } %>
         </div>
 
         <div class="card">
-            <div class="filter-bar">
-                <div class="search-group">
-                    <i class="fas fa-search"></i>
-                    <input type="text" placeholder="Search by name or roll no...">
-                </div>
-                <div class="filter-group">
-                    <select><option value="">All Hostels</option><option value="BH1">Vivekananda Boys Hostel</option><option value="GH1">Savitribai Phule Girls Hostel</option></select>
-                </div>
-                <div class="filter-group">
-                    <select><option value="">All Courses</option><option value="BTech">BTech</option><option value="MTech">MTech</option></select>
-                </div>
-                <div class="filter-group">
-                    <select><option value="">All Years</option><option value="1">First Year</option><option value="2">Second Year</option></select>
-                </div>
-                <button class="button-filter">Filter</button>
-            </div>
             <div class="table-container">
-                <table class="student-table">
+                <table class="students-table">
                     <thead>
                         <tr>
                             <th>Roll No</th>
-                            <th>Full Name</th>
-                            <th>Course & Year</th>
-                            <th>Hostel</th>
+                            <th>Student Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
                             <th>Room No</th>
+                            <th>Allocation Date</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <% if (studentList.isEmpty()) { %>
+                        <% if (allocatedStudents.isEmpty()) { %>
                             <tr>
-                                <td colspan="6" style="text-align: center; color: var(--light-text-color); padding: 2rem;">No students with room allocations found.</td>
+                                <td colspan="7" style="text-align: center; color: var(--light-text-color); padding: 2rem;">No students allocated to rooms yet.</td>
                             </tr>
                         <% } else {
-                            for (HashMap<String, String> student : studentList) {
+                                for (HashMap<String, String> student : allocatedStudents) {
                         %>
-                            <tr>
-                                <td><%= student.get("roll_no") %></td>
-                                <td><%= student.get("fullname") %></td>
-                                <td><%= student.get("course") %>, Year <%= student.get("year") %></td>
-                                <td><%= student.get("hostel_name") %></td>
-                                <td><%= student.get("room_no") %></td>
-                                <td><a href="view_student_details.jsp?roll_no=<%= student.get("roll_no") %>" class="button-action">View Details</a></td>
-                            </tr>
+                                <tr>
+                                    <td><%= student.get("roll_no") %></td>
+                                    <td><%= student.get("fullname") %></td>
+                                    <td><%= student.get("email") %></td>
+                                    <td><%= student.get("phone") %></td>
+                                    <td><%= student.get("room_no") %></td>
+                                    <td><%= student.get("allocation_date") %></td>
+                                    <td class="action-buttons">
+                                        <%-- Link to admin_allocate_room.jsp to view/manage their current allocation --%>
+                                        <a href="view_student_details.jsp?stud_roll=<%= student.get("roll_no") %>" class="action-button"><i class="fas fa-eye"></i> View Details</a>
+                                    </td>
+                                </tr>
                         <%
-                            }
-                        } %>
+                                }
+                            } %>
                     </tbody>
                 </table>
             </div>
