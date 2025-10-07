@@ -1,8 +1,7 @@
 <%@ page import="java.sql.*" %>
 <%--
-    This page handles new student registration. It now uses a pop-up modal
-    to display success, failure, or "already registered" messages to the user
-    instead of redirecting or showing an error page.
+    This is a simplified registration page.
+    It only checks if the Roll Number already exists before registering the user.
 --%>
 
 <%
@@ -13,17 +12,17 @@
     if ("POST".equalsIgnoreCase(request.getMethod())) {
 
         // Database connection details
-        String url = "jdbc:mysql://localhost:3306/hamp"; // Using your 'hamp' database
-        String dbUsername = "root"; 
-        String dbPassword = "root"; 
-        String driver = "com.mysql.jdbc.Driver"; // Modern driver class name
+        String url = "jdbc:mysql://localhost:3306/hamp";
+        String dbUsername = "root";
+        String dbPassword = "root";
+        String driver = "com.mysql.cj.jdbc.Driver";
 
         // Get form parameters
         String firstName = request.getParameter("first_name");
         String lastName = request.getParameter("last_name");
         String rollNo = request.getParameter("roll_no");
         String email = request.getParameter("email");
-        String mobile = request.getParameter("phone"); 
+        String mobile = request.getParameter("phone");
         String password = request.getParameter("password");
         String confirmPassword = request.getParameter("cpassword");
 
@@ -42,23 +41,22 @@
                 Class.forName(driver);
                 conn = DriverManager.getConnection(url, dbUsername, dbPassword);
 
-                // Step 1: Explicitly check ONLY for a duplicate Roll Number
+                // Step 1: Check for a duplicate Roll Number
                 String checkSql = "SELECT roll_no FROM student_auth WHERE roll_no = ?";
                 checkPstmt = conn.prepareStatement(checkSql);
                 checkPstmt.setString(1, rollNo);
                 rs = checkPstmt.executeQuery();
 
                 if (rs.next()) {
-                    // This condition is ONLY met if the Roll Number already exists.
                     message = "A user with this Roll Number already exists. Please log in.";
                     messageType = "error";
                 } else {
-                    // Step 2: If Roll Number is unique, proceed with the insertion.
+                    // Step 2: Proceed with the insertion.
                     String plainTextPassword = password;
-                    
+
                     String sql = "INSERT INTO student_auth (roll_no, fullname, email, mobile, password) VALUES (?, ?, ?, ?, ?)";
                     insertPstmt = conn.prepareStatement(sql);
-                    
+
                     insertPstmt.setString(1, rollNo);
                     insertPstmt.setString(2, fullname);
                     insertPstmt.setString(3, email);
@@ -77,9 +75,7 @@
                 }
 
             } catch (SQLIntegrityConstraintViolationException e) {
-                // This catch block will now only handle other integrity issues (e.g., a duplicate email).
-                // The message is generic, as requested.
-                message = "Registration failed due to a data conflict. Please check your details.";
+                message = "Registration failed. The email address might already be in use.";
                 messageType = "error";
                 e.printStackTrace();
             } catch (Exception e) {
@@ -121,7 +117,7 @@
             margin: 0;
             font-family: 'Inter', sans-serif;
             display: grid;
-            grid-template-columns: 1fr; 
+            grid-template-columns: 1fr;
             grid-template-rows: auto 1fr;
             grid-template-areas: "header" "main";
             height: 100vh;
@@ -147,17 +143,15 @@
             transition: all 0.3s ease;
         }
         .navbar a:hover { opacity: 1; background-color: rgba(255, 255, 255, 0.15); }
-        /* --- CORRECTED DROPDOWN STYLES --- */
         .dropdown {
             position: relative;
             display: inline-block;
         }
         .dropdown .dropbtn {
-            display: flex; /* Ensures caret is aligned */
+            display: flex;
             align-items: center;
-            gap: 0.5rem; /* Space between text and icon */
+            gap: 0.5rem;
             cursor: pointer;
-            /* Inherits padding, color, etc. from .navbar a */
         }
         .dropdown-content {
             display: none;
@@ -167,22 +161,21 @@
             box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.1);
             z-index: 1;
             border-radius: 8px;
-            /* Important fix: removed margin-top to prevent gap */
-            top: 100%; /* Position right below the button */
-            left: 0; /* Align left with the button */
-            padding-top: 0.5rem; /* Visual space but still part of dropdown hover area */
+            top: 100%;
+            left: 0;
+            padding-top: 0.5rem;
             overflow: hidden;
         }
         .dropdown-content a {
             color: var(--primary-color);
-            padding: 10px 16px; /* Adjusted padding for dropdown items */
+            padding: 10px 16px;
             text-decoration: none;
             display: block;
             text-align: left;
             font-weight: 500;
             background-color: transparent;
             opacity: 1;
-            white-space: nowrap; /* Prevent items from wrapping */
+            white-space: nowrap;
         }
         .dropdown-content a:hover {
             background-color: var(--secondary-color);
@@ -279,7 +272,7 @@
             top: 0; left: 0;
             width: 100%; height: 100%;
             background-color: rgba(0,0,0,0.5);
-            display: none; /* Initially hidden */
+            display: none;
             justify-content: center;
             align-items: center;
             z-index: 1000;
@@ -348,7 +341,7 @@
         <div class="auth-wrapper">
             <div class="register-form-container">
                 <h2>Create an Account</h2>
-                <form action="user_register.jsp" method="post">
+                <form id="registration-form" action="user_register.jsp" method="post">
                     <div class="form-group">
                         <label>Full Name:</label>
                         <div class="name-row">
@@ -402,58 +395,53 @@
     </div>
 
     <script>
-        // This script will run when the page loads
+        // This script will run when the page loads to show server messages
         window.onload = function() {
-            <%-- Check if the JSP has set a message --%>
             <% if (message != null) { %>
-                // Get the message details from the JSP variables
                 const message = "<%= message %>";
                 const messageType = "<%= messageType %>";
-
-                // Get the modal elements
-                const modal = document.getElementById('popup-modal');
-                const icon = document.getElementById('modal-icon');
-                const title = document.getElementById('modal-title');
-                const text = document.getElementById('modal-message');
-                const button = document.getElementById('modal-button');
-
-                // Configure the modal based on the message type
-                if (messageType === 'success') {
-                    icon.innerHTML = '<i class="fas fa-check-circle"></i>';
-                    icon.className = 'modal-icon success';
-                    title.innerText = 'Success!';
-                    text.innerText = message;
-                    button.innerText = 'Go to Login';
-                    button.href = 'user_login.jsp'; // Link to login page
-                    button.className = 'modal-button success';
-                } else { // 'error'
-                    icon.innerHTML = '<i class="fas fa-times-circle"></i>';
-                    icon.className = 'modal-icon error';
-                    title.innerText = 'Error!';
-                    text.innerText = message;
-                    button.innerText = 'Close';
-                    button.href = '#'; // Just close the modal
-                    button.className = 'modal-button error';
-                    
-                    // Add event listener for the error button to just close the modal
-                    button.onclick = function(e) {
-                        e.preventDefault();
-                        modal.style.display = 'none';
-                    };
-                }
-
-                // Show the modal
-                modal.style.display = 'flex';
-
-                // Close the modal if the overlay is clicked
-                modal.onclick = function(event) {
-                    if (event.target === modal) {
-                        modal.style.display = 'none';
-                    }
-                };
+                showModal(message, messageType);
             <% } %>
         };
-    </script>
 
+        // --- MODAL DISPLAY FUNCTION ---
+        function showModal(message, messageType) {
+            const modal = document.getElementById('popup-modal');
+            const icon = document.getElementById('modal-icon');
+            const title = document.getElementById('modal-title');
+            const text = document.getElementById('modal-message');
+            const button = document.getElementById('modal-button');
+
+            if (messageType === 'success') {
+                icon.innerHTML = '<i class="fas fa-check-circle"></i>';
+                icon.className = 'modal-icon success';
+                title.innerText = 'Success!';
+                button.innerText = 'Go to Login';
+                button.href = 'user_login.jsp';
+                button.className = 'modal-button success';
+                button.onclick = null; // Clear previous onclick
+            } else { // 'error'
+                icon.innerHTML = '<i class="fas fa-times-circle"></i>';
+                icon.className = 'modal-icon error';
+                title.innerText = 'Error!';
+                button.innerText = 'Close';
+                button.href = '#';
+                button.className = 'modal-button error';
+                button.onclick = function(e) {
+                    e.preventDefault();
+                    modal.style.display = 'none';
+                };
+            }
+            
+            text.innerText = message;
+            modal.style.display = 'flex';
+
+            modal.onclick = function(event) {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            };
+        }
+    </script>
 </body>
 </html>
