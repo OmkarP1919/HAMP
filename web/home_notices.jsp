@@ -8,7 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary-color: #1f2937;
+            --primary-color: #1f2937 
             --secondary-color: #f9fafb;
             --accent-color: #2563eb;
             --light-text-color: #6b7280;

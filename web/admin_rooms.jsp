@@ -1,3 +1,187 @@
+<%@ page import="java.sql.*, java.util.ArrayList, java.util.HashMap, java.util.List, java.util.Map, java.util.Collections, java.util.Comparator" %>
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+
+<%-- =================================================================
+     SERVER-SIDE LOGIC FOR ROOM MANAGEMENT (NO JS FOR FILTERING)
+     ================================================================= --%>
+<%
+    // --- 1. SESSION SECURITY CHECK ---
+    if (session.getAttribute("admin_id") == null) {
+        response.sendRedirect("admin_login.jsp?error=Please login first");
+        return;
+    }
+
+    String adminName = (String) session.getAttribute("admin_name"); // Assuming admin_name is set in session
+
+    // --- 2. GATHER DYNAMIC DATA ---
+    List<Map<String, Object>> rooms = new ArrayList<>();
+    int totalRoomsCount = 0;
+    int occupiedSlotsCount = 0;
+    int totalSlotsCapacity = 0;
+
+    List<String> uniqueFloors = new ArrayList<>(); // To populate the floor filter dropdown
+
+    // --- 3. READ FILTER PARAMETERS FROM REQUEST ---
+    String floorFilter = request.getParameter("floorFilter");
+    String statusFilterAvailable = request.getParameter("statusFilterAvailable");
+    String statusFilterOccupied = request.getParameter("statusFilterOccupied");
+    String searchTerm = request.getParameter("searchTerm");
+
+    // Set defaults if parameters are not present (initial load or no filter applied)
+    if (floorFilter == null) floorFilter = "All";
+    if (statusFilterAvailable == null) statusFilterAvailable = "on"; // Default to checked
+    if (statusFilterOccupied == null) statusFilterOccupied = "on";   // Default to checked
+    if (searchTerm == null) searchTerm = "";
+
+    // --- 4. DATABASE CONNECTION & QUERIES ---
+    Connection conn = null;
+    PreparedStatement pstmt = null;
+    ResultSet rs = null;
+
+    System.out.println("--- admin_rooms.jsp: Starting server-side processing ---");
+
+    try {
+        String url = "jdbc:mysql://localhost:3306/hamp"; // Adjust to your DB URL
+        String dbUsername = "root"; // Adjust to your DB username
+        String dbPassword = "root"; // Adjust to your DB password
+        String driver = "com.mysql.jdbc.Driver"; // Corrected driver name for modern MySQL
+        Class.forName(driver);
+        conn = DriverManager.getConnection(url, dbUsername, dbPassword);
+        System.out.println("DB Connection successful.");
+
+        // Build the SQL query dynamically based on filters
+        StringBuilder sqlBuilder = new StringBuilder("SELECT room_no, floor_no, total_slots, occupied_slots FROM room WHERE hostel_id = 'H1'");
+        List<Object> params = new ArrayList<>();
+
+        if (!"All".equals(floorFilter)) {
+            sqlBuilder.append(" AND floor_no = ?");
+            params.add(Integer.parseInt(floorFilter));
+        }
+
+        // Handle status filters
+        boolean filterByAvailable = "on".equals(statusFilterAvailable);
+        boolean filterByOccupied = "on".equals(statusFilterOccupied);
+
+        if (filterByAvailable && !filterByOccupied) { // Only available
+            sqlBuilder.append(" AND occupied_slots = 0");
+        } else if (!filterByAvailable && filterByOccupied) { // Only occupied
+            sqlBuilder.append(" AND occupied_slots > 0");
+        } else if (!filterByAvailable && !filterByOccupied) { // Neither selected
+             sqlBuilder.append(" AND 1 = 0"); // A condition that is always false
+        }
+        // If both are checked (default), no additional WHERE clause for status needed
+
+        if (!searchTerm.isEmpty()) {
+            sqlBuilder.append(" AND room_no LIKE ?");
+            params.add("%" + searchTerm + "%");
+        }
+
+        sqlBuilder.append(" ORDER BY floor_no, room_no");
+
+        pstmt = conn.prepareStatement(sqlBuilder.toString());
+        System.out.println("Executing query: " + sqlBuilder.toString());
+
+        // Set parameters
+        for (int i = 0; i < params.size(); i++) {
+            pstmt.setObject(i + 1, params.get(i));
+        }
+
+        rs = pstmt.executeQuery();
+
+        int roomsFetched = 0;
+        while (rs.next()) {
+            roomsFetched++;
+            Map<String, Object> room = new HashMap<>();
+
+            String roomNumber = rs.getString("room_no");
+            if (roomNumber == null || roomNumber.trim().isEmpty()) { // Also check for empty string
+                roomNumber = "N/A";
+                System.err.println("WARNING: room_no is NULL or empty for a room. Defaulting to 'N/A'.");
+            }
+
+            String floor = String.valueOf(rs.getInt("floor_no"));
+            int totalSlots = rs.getInt("total_slots");
+            int occupiedSlots = rs.getInt("occupied_slots");
+
+            String roomType = "Triple"; // Still setting it for consistency, though not displayed on card
+
+            String cssClass = "";
+            String displayStatusText = "";
+
+            if (occupiedSlots == 0) {
+                cssClass = "available";
+                displayStatusText = "Available";
+            } else {
+                cssClass = "occupied";
+                if (occupiedSlots == totalSlots) {
+                    displayStatusText = "Fully Occupied";
+                } else {
+                    displayStatusText = "Partially Occupied";
+                }
+            }
+
+            room.put("room_number", roomNumber);
+            room.put("floor", floor);
+            room.put("room_type", roomType);
+            room.put("total_slots", totalSlots);
+            room.put("occupied_slots", occupiedSlots);
+            room.put("status", displayStatusText);
+            room.put("css_class", cssClass);
+
+            rooms.add(room);
+        }
+        System.out.println("Total rooms fetched from DB matching filters: " + roomsFetched);
+
+        // --- Fetch ALL unique floors for the dropdown (separate query) ---
+        Statement stmtForFloors = null;
+        ResultSet rsForFloors = null;
+        try {
+            stmtForFloors = conn.createStatement();
+            rsForFloors = stmtForFloors.executeQuery("SELECT DISTINCT floor_no FROM room WHERE hostel_id = 'H1' ORDER BY floor_no");
+            while (rsForFloors.next()) {
+                uniqueFloors.add(String.valueOf(rsForFloors.getInt("floor_no")));
+            }
+        } finally {
+            if (rsForFloors != null) try { rsForFloors.close(); } catch (SQLException ignore) {}
+            if (stmtForFloors != null) try { stmtForFloors.close(); } catch (SQLException ignore) {}
+        }
+
+
+        // Aggregate counts from the *filtered* rooms for display
+        totalRoomsCount = rooms.size();
+        for(Map<String, Object> r : rooms) {
+            occupiedSlotsCount += (int) r.get("occupied_slots");
+            totalSlotsCapacity += (int) r.get("total_slots");
+        }
+
+
+    } catch (SQLException e) {
+        System.err.println("SQL Error loading rooms: " + e.getMessage());
+        e.printStackTrace();
+        request.setAttribute("errorMessage", "Database error: " + e.getMessage());
+    } catch (ClassNotFoundException e) {
+        System.err.println("JDBC Driver not found: " + e.getMessage());
+        e.printStackTrace();
+        request.setAttribute("errorMessage", "JDBC Driver error: " + e.getMessage());
+    } catch (Exception e) {
+        System.err.println("General Error loading rooms: " + e.getMessage());
+        e.printStackTrace();
+        request.setAttribute("errorMessage", "Error loading rooms: " + e.getMessage());
+    } finally {
+        try { if (rs != null) rs.close(); } catch (Exception e) { e.printStackTrace(); }
+        try { if (pstmt != null) pstmt.close(); } catch (Exception e) { e.printStackTrace(); }
+        try { if (conn != null) conn.close(); } catch (Exception e) { e.printStackTrace(); }
+        System.out.println("DB Resources closed.");
+    }
+    System.out.println("--- admin_rooms.jsp: Finished server-side processing ---");
+
+    double occupancyPercentage = 0.0;
+    if (totalSlotsCapacity > 0) {
+        occupancyPercentage = (double) occupiedSlotsCount / totalSlotsCapacity * 100;
+    }
+    String formattedOccupancy = String.format("%.1f", occupancyPercentage);
+%>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -16,8 +200,6 @@
             --border-color: #e5e7eb;
             --success-color: #10b981; /* Green for Available */
             --occupied-color: #3b82f6; /* Blue for Occupied */
-            --maintenance-color: #f59e0b; /* Yellow for Maintenance */
-            --danger-color: #ef4444; /* Red for Out of Order */
         }
 
         /* Basic reset and body styling */
@@ -79,7 +261,7 @@
             display: flex;
             gap: 2rem;
         }
-        
+
         .filter-sidebar {
             width: 280px;
             flex-shrink: 0;
@@ -102,9 +284,9 @@
         .form-group { margin-bottom: 1rem; }
         .form-group label { display: block; font-weight: 500; margin-bottom: 0.5rem; font-size: 0.9rem;}
         .form-group select { width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border-color); }
-        
+
         .checkbox-group { display: flex; align-items: center; gap: 0.75rem; }
-        .checkbox-group input[type="checkbox"] { flex-shrink: 0; margin: 0; } 
+        .checkbox-group input[type="checkbox"] { flex-shrink: 0; margin: 0; }
         .checkbox-group:not(:last-child) { margin-bottom: 0.75rem; }
 
         .legend-list { list-style: none; padding: 0; margin: 0; }
@@ -132,41 +314,71 @@
         .overview-header h1 { margin: 0; font-size: 2rem; }
         .search-bar input { padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--border-color); width: 350px; }
 
+        /* --- IMPROVED ROOM GRID STYLES --- */
         .room-grid {
-            flex-grow: 1;
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-            gap: 0.5rem 0.75rem; /* FIX: Reduced vertical gap */
-            overflow-y: auto;
-            padding: 1rem 0.5rem;
+            /* Allow larger cards, fewer columns for better readability */
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1.25rem; /* Increased gap for more breathing room */
+            padding: 0;
         }
 
         .room-card {
             color: white;
-            border-radius: 8px;
-            padding: 0.75rem;
+            border-radius: 12px; /* Slightly more rounded corners */
+            padding: 1.25rem; /* Increased padding */
             text-align: center;
             border: 2px solid transparent;
+            /* Using aspect-ratio for consistent card shape, adjust as needed */
             aspect-ratio: 1 / 1;
             display: flex;
             flex-direction: column;
+            justify-content: space-between; /* Distribute content */
+            align-items: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1); /* More pronounced shadow */
+            transition: transform 0.2s ease, box-shadow 0.2s ease; /* Add transition for hover effect */
+        }
+        .room-card:hover { /* Simple hover effect for interactivity */
+            transform: translateY(-5px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+        }
+
+        .room-card .room-number {
+            font-size: 1.8rem; /* Larger room number */
+            font-weight: 800;
+            margin-bottom: 0.5rem; /* Space between number and occupancy */
+            flex-grow: 1; /* Allows room number to take available space */
+            display: flex;
+            align-items: center;
             justify-content: center;
         }
-        .room-card .room-number { font-size: 1.2rem; font-weight: 800; }
-        .room-card .room-type { font-size: 0.8rem; opacity: 0.9; }
+        .room-card .room-occupancy {
+            font-size: 1rem; /* Larger occupancy text */
+            opacity: 0.95;
+            font-weight: 500;
+            background-color: rgba(0,0,0,0.15); /* Slightly darker background for better contrast */
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+        }
+
 
         .room-card.available { background-color: var(--success-color); border-color: #059669; }
         .room-card.occupied { background-color: var(--occupied-color); border-color: #1d4ed8; }
-        .room-card.maintenance { background-color: var(--maintenance-color); border-color: #b45309; }
-        .room-card.out-of-order { background-color: var(--danger-color); border-color: #b91c1c; }
-        
+
         /* Responsive */
         @media (max-width: 1200px) {
-            .filter-sidebar { display: none; }
-        }
-        @media (max-width: 992px) {
+            .main-content { flex-direction: column; gap: 1.5rem;}
+            .filter-sidebar { width: 100%; }
             body { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; grid-template-areas: "header" "sidebar" "main"; }
             .side-panel { border-right: none; border-bottom: 1px solid var(--border-color); }
+        }
+        @media (max-width: 768px) {
+            .overview-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+            .search-bar input { width: 100%; }
+            /* Adjust grid for smaller screens to still have decent sized cards */
+            .room-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 1rem; }
+            .room-card .room-number { font-size: 1.5rem; }
+            .room-card .room-occupancy { font-size: 0.85rem; padding: 0.3rem 0.6rem; }
         }
     </style>
 </head>
@@ -174,7 +386,7 @@
     <header class="top-panel">
         <div class="logo-title"><h1>Hostel Mate</h1></div>
         <div class="user-menu">
-            <span class="user-info"><i class="fas fa-user-circle"></i> Welcome, Admin</span>
+            <span class="user-info"><i class="fas fa-user-circle"></i> Welcome, <%= adminName != null ? adminName : "Admin" %></span>
             <a href="admin_login.jsp" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>
     </header>
@@ -185,7 +397,7 @@
             <li><a href="admin_profile.jsp"><i class="fas fa-user-cog"></i> Profile</a></li>
             <li><a href="admin_applications.jsp"><i class="fas fa-file-signature"></i> Applications</a></li>
             <li><a href="admin_slist.jsp"><i class="fas fa-users"></i> Students</a></li>
-            <li><a href="#" class="active"><i class="fas fa-bed"></i> Rooms</a></li>
+            <li><a href="admin_rooms.jsp" class="active"><i class="fas fa-bed"></i> Rooms</a></li>
         </ul>
     </aside>
     <main class="main-content">
@@ -193,21 +405,32 @@
             <div class="filter-card">
                 <div class="filter-header"><h3>Filters & Options</h3></div>
                 <div class="filter-body">
-                    <div class="form-group">
-                        <label for="floor">Floor</label>
-                        <select id="floor"><option>All Floors</option><option>1st Floor</option><option>2nd Floor</option><option>3rd Floor</option></select>
-                    </div>
-                    <div class="form-group">
-                        <label for="room_type">Room Type</label>
-                        <select id="room_type"><option>All Types</option><option>Single</option><option>Double</option><option>Triple</option></select>
-                    </div>
-                    <div class="form-group">
-                        <label>Status</label>
-                        <div class="checkbox-group"><input type="checkbox" id="status_occupied" checked> <label for="status_occupied">Occupied</label></div>
-                        <div class="checkbox-group"><input type="checkbox" id="status_available" checked> <label for="status_available">Available</label></div>
-                        <div class="checkbox-group"><input type="checkbox" id="status_maintenance" checked> <label for="status_maintenance">Maintenance</label></div>
-                        <div class="checkbox-group"><input type="checkbox" id="status_out_of_order" checked> <label for="status_out_of_order">Out of Order</label></div>
-                    </div>
+                    <%-- The form for filters will submit back to this JSP --%>
+                    <form action="admin_rooms.jsp" method="get" id="filterForm">
+                        <div class="form-group">
+                            <label for="floorFilter">Floor</label>
+                            <select id="floorFilter" name="floorFilter" onchange="document.getElementById('filterForm').submit()">
+                                <option value="All" <%= "All".equals(floorFilter) ? "selected" : "" %>>All Floors</option>
+                                <% for (String floor : uniqueFloors) { %>
+                                    <option value="<%= floor %>" <%= floor.equals(floorFilter) ? "selected" : "" %>><%= floor %> Floor</option>
+                                <% } %>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Status</label>
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="statusFilterOccupied" name="statusFilterOccupied" <%= "on".equals(statusFilterOccupied) ? "checked" : "" %> onchange="document.getElementById('filterForm').submit()">
+                                <label for="statusFilterOccupied">Occupied</label>
+                            </div>
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="statusFilterAvailable" name="statusFilterAvailable" <%= "on".equals(statusFilterAvailable) ? "checked" : "" %> onchange="document.getElementById('filterForm').submit()">
+                                <label for="statusFilterAvailable">Available</label>
+                            </div>
+                        </div>
+                        <%-- Add a hidden input for search term to persist it across submits --%>
+                        <input type="hidden" id="hiddenSearchTerm" name="searchTerm" value="<%= searchTerm %>">
+                    </form>
                 </div>
             </div>
             <div class="filter-card">
@@ -216,8 +439,6 @@
                     <ul class="legend-list">
                         <li class="legend-item"><div class="color-box" style="background-color: var(--occupied-color);"></div> Occupied</li>
                         <li class="legend-item"><div class="color-box" style="background-color: var(--success-color);"></div> Available</li>
-                        <li class="legend-item"><div class="color-box" style="background-color: var(--maintenance-color);"></div> Maintenance</li>
-                        <li class="legend-item"><div class="color-box" style="background-color: var(--danger-color);"></div> Out of Order</li>
                     </ul>
                 </div>
             </div>
@@ -233,167 +454,49 @@
             <div class="overview-header">
                 <div>
                     <h1>Room Overview</h1>
-                    <p style="margin:0; color: var(--light-text-color);">Total: 250 rooms | Occupancy: 68.9%</p>
+                    <p style="margin:0; color: var(--light-text-color);">Total: <%= totalRoomsCount %> rooms | Occupancy: <%= formattedOccupancy %>%</p>
                 </div>
                 <div class="search-bar">
-                    <input type="text" placeholder="Search room...">
+                    <%-- This input will update a hidden field and submit the form --%>
+                    <input type="text" id="searchRoom" placeholder="Search room number..." value="<%= searchTerm %>"
+                           onkeyup="document.getElementById('hiddenSearchTerm').value = this.value; document.getElementById('filterForm').submit();">
                 </div>
             </div>
-            <div class="room-grid">
-                <!-- JSP will generate these room cards dynamically -->
-                <div class="room-card occupied"><div class="room-number">101</div><div class="room-type">Single</div></div>
-                <div class="room-card available"><div class="room-number">102</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">103</div><div class="room-type">Single</div></div>
-                <div class="room-card maintenance"><div class="room-number">104</div><div class="room-type">Triple</div></div>
-                <div class="room-card occupied"><div class="room-number">105</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">106</div><div class="room-type">Quad</div></div>
-                <div class="room-card out-of-order"><div class="room-number">107</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">108</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">109</div><div class="room-type">Triple</div></div>
-                <div class="room-card occupied"><div class="room-number">110</div><div class="room-type">Triple</div></div>
-                <div class="room-card available"><div class="room-number">111</div><div class="room-type">Double</div></div>
-                <div class="room-card available"><div class="room-number">112</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">113</div><div class="room-type">Double</div></div>
-                <div class="room-card available"><div class="room-number">114</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">115</div><div class="room-type">Triple</div></div>
-                <div class="room-card available"><div class="room-number">116</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">117</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">118</div><div class="room-type">Quad</div></div>
-                <div class="room-card maintenance"><div class="room-number">119</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">120</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">121</div><div class="room-type">Single</div></div>
-                <div class="room-card available"><div class="room-number">122</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">123</div><div class="room-type">Single</div></div>
-                <div class="room-card maintenance"><div class="room-number">124</div><div class="room-type">Triple</div></div>
-                <div class="room-card occupied"><div class="room-number">125</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">126</div><div class="room-type">Quad</div></div>
-                <div class="room-card out-of-order"><div class="room-number">127</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">128</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">129</div><div class="room-type">Triple</div></div>
-                <div class="room-card occupied"><div class="room-number">130</div><div class="room-type">Triple</div></div>
-                <div class="room-card available"><div class="room-number">131</div><div class="room-type">Double</div></div>
-                <div class="room-card available"><div class="room-number">132</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">133</div><div class="room-type">Double</div></div>
-                <div class="room-card available"><div class="room-number">134</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">135</div><div class="room-type">Triple</div></div>
-                <div class="room-card available"><div class="room-number">136</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">137</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">138</div><div class="room-type">Quad</div></div>
-                <div class="room-card maintenance"><div class="room-number">139</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">140</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">141</div><div class="room-type">Single</div></div>
-                <div class="room-card available"><div class="room-number">142</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">143</div><div class="room-type">Single</div></div>
-                <div class="room-card maintenance"><div class="room-number">144</div><div class="room-type">Triple</div></div>
-                <div class="room-card occupied"><div class="room-number">145</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">146</div><div class="room-type">Quad</div></div>
-                <div class="room-card out-of-order"><div class="room-number">147</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">148</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">149</div><div class="room-type">Triple</div></div>
-                <div class="room-card occupied"><div class="room-number">150</div><div class="room-type">Triple</div></div>
-                <div class="room-card available"><div class="room-number">201</div><div class="room-type">Double</div></div>
-                <div class="room-card available"><div class="room-number">202</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">203</div><div class="room-type">Triple</div></div>
-                <div class="room-card available"><div class="room-number">204</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">205</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">206</div><div class="room-type">Quad</div></div>
-                <div class="room-card out-of-order"><div class="room-number">207</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">208</div><div class="room-type">Double</div></div>
-                <div class="room-card available"><div class="room-number">209</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">210</div><div class="room-type">Triple</div></div>
-                <div class="room-card available"><div class="room-number">211</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">212</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">213</div><div class="room-type">Quad</div></div>
-                <div class="room-card maintenance"><div class="room-number">214</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">215</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">216</div><div class="room-type">Single</div></div>
-                <div class="room-card available"><div class="room-number">217</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">218</div><div class="room-type">Single</div></div>
-                <div class="room-card maintenance"><div class="room-number">219</div><div class="room-type">Triple</div></div>
-                <div class="room-card occupied"><div class="room-number">220</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">221</div><div class="room-type">Quad</div></div>
-                <div class="room-card out-of-order"><div class="room-number">222</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">223</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">224</div><div class="room-type">Triple</div></div>
-                <div class="room-card occupied"><div class="room-number">225</div><div class="room-type">Triple</div></div>
-                <div class="room-card available"><div class="room-number">226</div><div class="room-type">Double</div></div>
-                <div class="room-card available"><div class="room-number">227</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">228</div><div class="room-type">Double</div></div>
-                <div class="room-card available"><div class="room-number">229</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">230</div><div class="room-type">Triple</div></div>
-                <div class="room-card available"><div class="room-number">231</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">232</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">233</div><div class="room-type">Quad</div></div>
-                <div class="room-card maintenance"><div class="room-number">234</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">235</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">236</div><div class="room-type">Single</div></div>
-                <div class="room-card available"><div class="room-number">237</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">238</div><div class="room-type">Single</div></div>
-                <div class="room-card maintenance"><div class="room-number">239</div><div class="room-type">Triple</div></div>
-                <div class="room-card occupied"><div class="room-number">240</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">241</div><div class="room-type">Quad</div></div>
-                <div class="room-card out-of-order"><div class="room-number">242</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">243</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">244</div><div class="room-type">Triple</div></div>
-                <div class="room-card occupied"><div class="room-number">245</div><div class="room-type">Triple</div></div>
-                <div class="room-card available"><div class="room-number">246</div><div class="room-type">Double</div></div>
-                <div class="room-card available"><div class="room-number">247</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">248</div><div class="room-type">Double</div></div>
-                <div class="room-card available"><div class="room-number">249</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">250</div><div class="room-type">Triple</div></div>
-                <div class="room-card available"><div class="room-number">301</div><div class="room-type">Double</div></div>
-                <div class="room-card available"><div class="room-number">302</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">303</div><div class="room-type">Triple</div></div>
-                <div class="room-card available"><div class="room-number">304</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">305</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">306</div><div class="room-type">Quad</div></div>
-                <div class="room-card out-of-order"><div class="room-number">307</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">308</div><div class="room-type">Double</div></div>
-                <div class="room-card available"><div class="room-number">309</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">310</div><div class="room-type">Triple</div></div>
-                <div class="room-card available"><div class="room-number">311</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">312</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">313</div><div class="room-type">Quad</div></div>
-                <div class="room-card maintenance"><div class="room-number">314</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">315</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">316</div><div class="room-type">Single</div></div>
-                <div class="room-card available"><div class="room-number">317</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">318</div><div class="room-type">Single</div></div>
-                <div class="room-card maintenance"><div class="room-number">319</div><div class="room-type">Triple</div></div>
-                <div class="room-card occupied"><div class="room-number">320</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">321</div><div class="room-type">Quad</div></div>
-                <div class="room-card out-of-order"><div class="room-number">322</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">323</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">324</div><div class="room-type">Triple</div></div>
-                <div class="room-card occupied"><div class="room-number">325</div><div class="room-type">Triple</div></div>
-                <div class="room-card available"><div class="room-number">326</div><div class="room-type">Double</div></div>
-                <div class="room-card available"><div class="room-number">327</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">328</div><div class="room-type">Double</div></div>
-                <div class="room-card available"><div class="room-number">329</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">330</div><div class="room-type">Triple</div></div>
-                <div class="room-card available"><div class="room-number">331</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">332</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">333</div><div class="room-type">Quad</div></div>
-                <div class="room-card maintenance"><div class="room-number">334</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">335</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">336</div><div class="room-type">Single</div></div>
-                <div class="room-card available"><div class="room-number">337</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">338</div><div class="room-type">Single</div></div>
-                <div class="room-card maintenance"><div class="room-number">339</div><div class="room-type">Triple</div></div>
-                <div class="room-card occupied"><div class="room-number">340</div><div class="room-type">Double</div></div>
-                <div class="room-card occupied"><div class="room-number">341</div><div class="room-type">Quad</div></div>
-                <div class="room-card out-of-order"><div class="room-number">342</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">343</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">344</div><div class="room-type">Triple</div></div>
-                <div class="room-card occupied"><div class="room-number">345</div><div class="room-type">Triple</div></div>
-                <div class="room-card available"><div class="room-number">346</div><div class="room-type">Double</div></div>
-                <div class="room-card available"><div class="room-number">347</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">348</div><div class="room-type">Double</div></div>
-                <div class="room-card available"><div class="room-number">349</div><div class="room-type">Single</div></div>
-                <div class="room-card occupied"><div class="room-number">350</div><div class="room-type">Triple</div></div>
+            <div id="roomContainer" class="room-grid">
+                <%-- Rooms will be directly rendered here by JSP --%>
+                <% if (rooms.isEmpty()) { %>
+                    <p id="noRoomsMessage" style="text-align: center; margin-top: 2rem; color: var(--light-text-color); grid-column: 1 / -1;">No rooms found in the database for Hostel H1 or matching your criteria.</p>
+                <% } else { %>
+                    <%
+                        // The 'rooms' list is already filtered and sorted by the server-side logic
+                        for (Map<String, Object> room : rooms) {
+                            String roomNumber = (String) room.get("room_number");
+                            String cssClass = (String) room.get("css_class");
+                            int totalSlots = (int) room.get("total_slots");
+                            int occupiedSlots = (int) room.get("occupied_slots");
+                    %>
+                        <div class="room-card <%= cssClass %>">
+                            <div class="room-number"><%= roomNumber %></div>
+                            <div class="room-occupancy"><%= occupiedSlots %>/<%= totalSlots %> Seats</div>
+                        </div>
+                    <%
+                        }
+                    %>
+                <% } %>
             </div>
         </div>
     </main>
+
+    <script>
+        // Optional: A small piece of JS to prevent form submission on Enter key in search bar
+        // if you want onkeyup to be the primary trigger.
+        document.getElementById('searchRoom').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault(); // Prevent default form submission
+                document.getElementById('hiddenSearchTerm').value = this.value;
+                document.getElementById('filterForm').submit();
+            }
+        });
+    </script>
 </body>
 </html>
-
