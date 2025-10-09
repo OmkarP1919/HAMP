@@ -15,7 +15,7 @@
         String url = "jdbc:mysql://localhost:3306/hamp";
         String dbUsername = "root";
         String dbPassword = "root";
-        String driver = "com.mysql.cj.jdbc.Driver";
+        String driver = "com.mysql.jdbc.Driver";
 
         // Get form parameters
         String firstName = request.getParameter("first_name");
@@ -225,7 +225,7 @@
             font-size: 1.1em;
             font-weight: bold;
             margin-top: 10px;
-            transition: background-color 0.3s ease;
+            transition: background-color: 0.3s ease;
         }
         .submit-btn:hover { background-color: #218838; }
         .divider {
@@ -265,7 +265,7 @@
             transition: background-color 0.3s ease;
         }
         .login-prompt-section a.login-button:hover { background-color: #1e40af; }
-        
+
         /* --- POP-UP MODAL STYLES --- */
         .modal-overlay {
             position: fixed;
@@ -307,7 +307,7 @@
         }
         .modal-button.success { background-color: var(--success-color); color: white; }
         .modal-button.error { background-color: var(--danger-color); color: white; }
-        
+
         @media (max-width: 992px) {
             .auth-wrapper { flex-direction: column; max-width: 500px; }
             .divider { height: auto; width: 80%; border-left: none; border-top: 1px solid var(--border-color); margin: 30px 0; }
@@ -351,11 +351,11 @@
                     </div>
                     <div class="form-group">
                         <label for="roll_no">Roll Number:</label>
-                        <input type="text" id="roll_no" name="roll_no" required>
+                        <input type="text" id="roll_no" name="roll_no" pattern="EN.*" title="Roll Number must start with EN." placeholder="e.g., EN123456" required>
                     </div>
                     <div class="form-group">
                         <label for="email">Email ID:</label>
-                        <input type="email" id="email" name="email" required>
+                        <input type="email" id="email" name="email" pattern=".+@.+\..+" title="Please enter a valid email address (e.g., name@example.com)" required>
                     </div>
                     <div class="form-group">
                         <label for="phone">Phone Number:</label>
@@ -432,7 +432,7 @@
                     modal.style.display = 'none';
                 };
             }
-            
+
             text.innerText = message;
             modal.style.display = 'flex';
 

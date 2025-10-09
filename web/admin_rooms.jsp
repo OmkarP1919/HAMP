@@ -53,7 +53,7 @@
         String url = "jdbc:mysql://localhost:3306/hamp";
         String dbUsername = "root";
         String dbPassword = "root";
-        // **FIX**: Updated to the modern, correct JDBC driver class name
+        
         String driver = "com.mysql.jdbc.Driver";
         Class.forName(driver);
         conn = DriverManager.getConnection(url, dbUsername, dbPassword);
