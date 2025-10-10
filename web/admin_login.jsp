@@ -183,7 +183,7 @@
                 </li>
                 <li><a href="home_hostels.jsp">Hostels</a></li>
                 <li><a href="user_register.jsp">Apply</a></li>
-                <li><a href="home_downloads.jsp">Downloads</a></li>
+                <li><a href="home_notices.jsp">Downloads</a></li>
                 <li><a href="index.html#contact">Contact Us</a></li>
             </ul>
         </nav>

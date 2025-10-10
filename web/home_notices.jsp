@@ -70,7 +70,7 @@
             opacity: 1;
             background-color: rgba(255, 255, 255, 0.15);
         }
-        /* --- CORRECTED DROPDOWN STYLES --- */
+/* --- CORRECTED DROPDOWN STYLES --- */
         .dropdown {
             position: relative;
             display: inline-block;
@@ -113,7 +113,6 @@
         .dropdown:hover .dropdown-content {
             display: block;
         }
-        
         /* Main Content Styling */
         .main-content {
             padding: 4rem 0;
