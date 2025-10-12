@@ -27,7 +27,7 @@
         String url = "jdbc:mysql://localhost:3306/hamp";
         String dbUsername = "root";
         String dbPassword = "root";
-        // Corrected driver to the modern one. Change back to "com.mysql.jdbc.Driver" if you use an older library.
+       
         String driver = "com.mysql.jdbc.Driver";
         Class.forName(driver);
         conn = DriverManager.getConnection(url, dbUsername, dbPassword);
@@ -55,7 +55,7 @@
         if (pstmt != null) pstmt.close();
 
         // Query 3: Get Application Status (most recent one)
-        // Note: Closing rs and pstmt explicitly after each use to prevent potential issues
+     
         pstmt = conn.prepareStatement("SELECT status FROM applications WHERE stud_roll = ? ORDER BY applied_date DESC LIMIT 1");
         pstmt.setString(1, userRollNo);
         rs = pstmt.executeQuery();
@@ -226,7 +226,7 @@
             <div class="status-card">
                 <div class="status-card-header"><i class="fas fa-file-alt"></i><span>Application Status</span></div>
                 <div class="status-card-body">
-                    <%-- CORRECTED LOGIC: Prioritize 'Room Allocated' --%>
+                 
                     <% if (!roomDetails.isEmpty()) { %>
                         <div class="status-text approved">Room Allocated</div>
                         <p class="status-description">Your room has been successfully allocated. Welcome to your new home\! <a href="user_downloads.jsp">Download your allocation letter &rarr;</a></p>

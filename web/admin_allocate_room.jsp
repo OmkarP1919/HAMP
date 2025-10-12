@@ -31,7 +31,6 @@
         String url = "jdbc:mysql://localhost:3306/hamp";
         String dbUsername = "root";
         String dbPassword = "root";
-        // Corrected to the modern driver for MySQL Connector/J 8.0+
         String driver = "com.mysql.jdbc.Driver"; 
         Class.forName(driver);
         conn = DriverManager.getConnection(url, dbUsername, dbPassword);
@@ -59,7 +58,7 @@
                 messageType = "error";
             }
             rs.close();
-            if (pstmt != null) pstmt.close(); // Close after use
+            if (pstmt != null) pstmt.close();
 
             // --- B. Handle Room Allocation Form Submission ---
             if ("POST".equalsIgnoreCase(request.getMethod())) {

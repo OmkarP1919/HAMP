@@ -29,10 +29,10 @@
     ResultSet rs = null;
 
     try {
-        String url = "jdbc:mysql://localhost:3306/hamp"; // Ensure this matches your DB URL
-        String dbUsername = "root";                     // Ensure this matches your DB username
-        String dbPassword = "root";                     // Ensure this matches your DB password
-        String driver = "com.mysql.jdbc.Driver";    // Corrected to cj driver for modern MySQL
+        String url = "jdbc:mysql://localhost:3306/hamp";
+        String dbUsername = "root";                   
+        String dbPassword = "root";                     
+        String driver = "com.mysql.jdbc.Driver"; 
         Class.forName(driver);
         conn = DriverManager.getConnection(url, dbUsername, dbPassword);
 

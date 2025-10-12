@@ -375,7 +375,7 @@
     </main>
 
     <script>
-        // **FIX**: Centralized function to submit the form.
+        
         // This ensures the search term is always included with any filter change.
         function submitFilterForm() {
             // Get the current value from the visible search bar.
